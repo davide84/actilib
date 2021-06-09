@@ -85,7 +85,6 @@ def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D')
 
 
 def calculate_dprime(data_freq, data_nps, data_ttf, params=get_dprime_default_params()):
-    params['contrast_hu'] = data_ttf['contrast']
     pixel_size_sq = params['pixel_size_mm'] ** 2
     task_image = calculate_task_image(params)
     weights = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)) ** 2)

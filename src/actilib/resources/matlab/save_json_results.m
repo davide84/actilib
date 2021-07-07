@@ -4,7 +4,7 @@
 % res = imquest_MercuryPhantomAutoAnalyze(imq_handle,'4.0');
 % json = save_json_results('/home/cester/Data/2021-06-12_MP4_PCCT/PlotData/10mGy_FBP_80keV_R1.json', res);
 
-function ret = save_json_results(json_file_path, res)
+function ret = save_json_results(json_file_path, res, flag_gzip)
 
     list_diameters = ["d160mm", "d210mm", "d260mm", "d310mm", "d360mm"];
     list_inserts = ["Air", "Water", "Bone", "Polystyrene", "Iodine"];
@@ -143,6 +143,7 @@ function ret = save_json_results(json_file_path, res)
         for d=1:size(res.TTFs, 1)  % inserts
             tmp_d = struct();
             tmp_d.ESF = res.TTFs(d,i).stats.ESF.ESF;
+            tmp_d.LSF = LSF_from_ESF(tmp_d.ESF);
             tmp_d.TTF = res.TTFs(d,i).TTF;
             tmp_d.contrast = res.TTFs(d,i).contrast;
             tmp_d.f10 = res.TTFs(d,i).f10;
@@ -170,5 +171,38 @@ function ret = save_json_results(json_file_path, res)
     fid=fopen(json_file_path, 'w');
     fprintf(fid, json_data);
     fclose(fid);
+    
+    %optional compression
+    if nargin>2 & flag_gzip==true
+        [save_path, json_name, ~] = fileparts(json_file_path);
+        gzip_file_path = [save_path filesep json_name '.tar.gz'];
+        tar(gzip_file_path, {json_file_path}, save_path);
+        delete(json_file_path)
+    end
 
+end
+
+function LSF = LSF_from_ESF(ESF)
+    %Find the width of the ESF
+    M=max(ESF);
+    m=min(ESF);
+    [~,edgePosition] = sort(abs( ESF-(M+m)/2 ));% make sure ESF is increasing
+    edgeCenter = (edgePosition(1));
+    if mean(ESF(1:edgeCenter))>mean(ESF(edgeCenter:end))
+        E1=find(ESF>m+0.85*(M-m),1,'last');
+        E2=find(ESF<m+0.15*(M-m),1,'first');
+    else
+        E1=find(ESF>m+0.85*(M-m),1,'first');
+        E2=find(ESF<m+0.15*(M-m),1,'last');
+    end
+    default_hann_window_size = 15;
+    w = default_hann_window_size * abs(E2-E1);
+    f1=max(edgeCenter-w,1);
+    f2=min(edgeCenter+w,length(ESF)-1);
+    %Take derivative of ESF to get LSF
+    LSF = diff(ESF);
+    %Apply hann window to smooth out tails
+    H = zeros(size(LSF));
+    H(f1:f2) = hann(length(H(f1:f2)));
+    LSF = LSF(:).*H(:);
 end

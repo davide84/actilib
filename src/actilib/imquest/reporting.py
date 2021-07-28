@@ -34,16 +34,17 @@ def _plot_patches(ax, z, values, color):
 
 def plot_current_profile(full_data):
     plt.clf()
-    data = full_data['values_current']
+    curr_data = full_data['values_current']
+    slice_data = full_data['values_slices']
     scout_image = json.loads(pkgutil.get_data(__name__, path.join('../resources', 'scout_image.json')).decode("utf-8"))
     # plot the current
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8, 6)
     axs.set_xlabel('Slice Position [mm]')
-    axs.set_ylim(data['ma']['limits'])
-    axs.set_yticks(range(0, data['ma']['limits'][1], 5))
-    axs.set_ylabel(data['ma']['label'])
-    axs.plot(data['z'], data['ma']['values'], 'r')
+    axs.set_ylim(curr_data['ma']['limits'])
+    axs.set_yticks(range(0, curr_data['ma']['limits'][1], 5))
+    axs.set_ylabel(curr_data['ma']['label'])
+    axs.plot(slice_data['z'], curr_data['ma']['values'], 'r')
     axs.set_zorder(1)
     axs.patch.set_visible(False)
     # plot the background image and the WED curve on the secondary axis
@@ -51,11 +52,11 @@ def plot_current_profile(full_data):
     secax = axs.twinx()
     secax.set_ylim([0, sec_ymax])
     secax.set_ylabel('Water Equivalent Diameter [mm]')
-    secax.imshow(scout_image, cmap='gray', extent=[data['z'][-1], data['z'][0], 0, sec_ymax], aspect='auto')
-    secax.plot(data['z'], data['wed'], 'b')
+    secax.imshow(scout_image, cmap='gray', extent=[slice_data['z'][-1], slice_data['z'][0], 0, sec_ymax], aspect='auto')
+    secax.plot(slice_data['z'], curr_data['wed'], 'b')
     # plot the locations
-    _plot_patches(secax, data['z'], data['nps_slices'], 'y')
-    _plot_patches(secax, data['z'], data['ttf_slices'], 'g')
+    _plot_patches(secax, slice_data['z'], slice_data['is_nps'], 'y')
+    _plot_patches(secax, slice_data['z'], slice_data['is_ttf'], 'g')
     return _save_current_figure(plt)
 
 

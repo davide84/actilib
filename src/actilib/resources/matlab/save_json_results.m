@@ -71,13 +71,17 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
         ret.values_dprime.(list_inserts(i)) = tmp_i;
     end
 
+    % Slice Position and usage flags (NPS/TTF)
+    % ---------------------------------------------------------------------
+    ret.values_slices = struct();
+    [~, ~, z] = getCTcoordinates(res.tool.DICOMheaders);
+    ret.values_slices.z = z;
+    ret.values_slices.is_nps = res.NPSslice;
+    ret.values_slices.is_ttf = res.TTFslice;
+
     % Tube Current profile
     % ---------------------------------------------------------------------
     cp = struct();
-    [~, ~, z] = getCTcoordinates(res.tool.DICOMheaders);
-    cp.z = z;
-    cp.nps_slices = res.NPSslice;
-    cp.ttf_slices = res.TTFslice;
     % Create mA profile
     for i=1:res.tool.CTImageSize(3)  % loop on the axial slices
         if isfield(res.tool.DICOMheaders,'CTDIvol')
@@ -100,7 +104,6 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
                     p=1;
                 end
             end
-             
             mA(i,1) = m*s/p;
             ylab = 'Effective mAs';
             ylims = [0 50 100 800 1000 2000];

@@ -172,18 +172,18 @@ def plot_ttf(full_data):
     return _save_current_figure(plt)
 
 
-def get_ttf_table(full_data):
+def get_ttf_table(ttf_data):
     table_data = []
-    for insert in full_data['values_ttf']:
-        for diameter in full_data['values_ttf'][insert]:
-            data = full_data['values_ttf'][insert][diameter]
+    for insert in ttf_data['values_ttf']:
+        for diameter in ttf_data['values_ttf'][insert]:
+            data = ttf_data['values_ttf'][insert][diameter]
             table_data.append([insert, diameter[1:-2] + ' mm',
                                data['contrast'], data['f10'], data['f50']])
     return table_data
 
 
-def print_ttf_table(full_data):
-    table_data = get_ttf_table(full_data)
+def print_ttf_table(ttf_data):
+    table_data = get_ttf_table(ttf_data)
     print(tabulate(table_data, headers=['Insert', 'Diameter [mm]', 'Contrast [HU]', 'f10 [1/mm]', 'f50 [1/mm]']))
 
 

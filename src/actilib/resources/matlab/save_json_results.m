@@ -6,8 +6,9 @@
 
 function ret = save_json_results(json_file_path, res, flag_gzip)
 
-    list_diameters = ["d160mm", "d210mm", "d260mm", "d310mm", "d360mm"];
-    list_inserts = ["Air", "Water", "Bone", "Polystyrene", "Iodine"];
+    for i=1:length(res.PhantomDiameters)
+        list_diameters(i) = "d" + num2str(res.PhantomDiameters(i)) + "mm";
+    end
 
     % Software information
     % ---------------------------------------------------------------------
@@ -16,7 +17,8 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
     % Phantom information
     % ---------------------------------------------------------------------
     pp = struct();
-    pp.version = 4.0;
+    pp.name = 'Mercury Phantom';
+    pp.version = res.phantomVersion;
     pp.diameters_mm = res.PhantomDiameters;
     pp.insert_names = res.Inserts;
     pp.nyquist_frequencies = struct();
@@ -58,7 +60,7 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
     % Detectability Index vs Phantom Diameter
     % ---------------------------------------------------------------------
     ret.values_dprime = struct();
-    for i=1:length(list_inserts)
+    for i=1:length(res.Inserts)
         tmp_i = struct();
         tmp_i.dprimes = struct();
         for d=1:length(list_diameters)
@@ -68,7 +70,7 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
         tmp_i.beta = res.betas(i);
         tmp_i.residual = res.residuals(i);
         tmp_i.r2 = res.R2s(i);
-        ret.values_dprime.(list_inserts(i)) = tmp_i;
+        ret.values_dprime.(res.Inserts{i}) = tmp_i;
     end
 
     % Slice Position and usage flags (NPS/TTF)
@@ -126,6 +128,23 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
     % final current profile
     ret.values_current = cp;
 
+    % HU values
+    % ---------------------------------------------------------------------
+    hu = struct();
+    hu.background = struct();
+    hu.background.nominal = res.HU_bkg;
+    for d=1:size(res.TTFs, 2)  % diameters
+        try hu.background.(list_diameters(d)) = res.NPSs(d).NPSinfo.HU_bkg; end
+    end
+    for i=1:size(res.TTFs, 1)  % inserts
+        hu.(res.Inserts{i}) = struct();
+        hu.(res.Inserts{i}).nominal = res.HU_inserts(i);
+        for d=1:size(res.TTFs, 2)  % diameters
+            try hu.(res.Inserts{i}).(list_diameters(d)) = res.TTFs(d,i).contrast + res.NPSs(d).NPSinfo.HU_bkg; end
+        end
+    end
+    ret.values_hu = hu;
+
     % Noise Properties
     % ---------------------------------------------------------------------
     ret.values_nps = struct();
@@ -153,7 +172,7 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
             tmp_d.f50 = res.TTFs(d,i).f50;
             tmp_i.(list_diameters(d)) = tmp_d;
         end
-        ret.values_ttf.(list_inserts(i)) = tmp_i;
+        ret.values_ttf.(res.Inserts{i}) = tmp_i;
     end
 
     % Frequency intervals for plotting

@@ -1,6 +1,7 @@
-import math
-import numpy as np
 import cv2 as cv
+import math
+import matplotlib.pyplot as plt
+import numpy as np
 from pydicom import dcmread
 from pydicom.pixel_data_handlers.util import apply_modality_lut
 
@@ -25,6 +26,12 @@ class PixelROI:
         print('    pixel indexes:', self.yx_indexes())
 
     def size(self):
+        return self._size
+
+    def width(self):
+        return self._size
+
+    def height(self):
         return self._size
 
     def edge_t(self):
@@ -84,6 +91,20 @@ def find_phantom_center_and_size(numpy_array):
     return [center_x, center_y], max_r
 
 
+def radial_average(nps_2d_array):
+    return [0]
+
+
+def radial_profile(data, center):
+    y, x = np.indices(data.shape)
+    r = np.sqrt((x - data.shape[1]/2)**2 + (y - data.shape[0]/2)**2)
+    r = r.astype(np.int)
+    tbin = np.bincount(r.ravel(), data.ravel())
+    nr = np.bincount(r.ravel())
+    radialprofile = tbin / nr
+    return radialprofile
+
+
 if __name__ == '__main__':
     #
     # read the images
@@ -102,25 +123,11 @@ if __name__ == '__main__':
     # print(image_size_xy_px, image_center_xy_px, pixel_size_xy_mm)
 
     #
-    # create the ROIs
+    # create and visualize the ROIs
     #
     roi_diameter_px = NPS_ROI_DIAMETER_MM / pixel_size_xy_mm[0]
     roi_distcent_px = NPS_ROI_DISTCENT_MM / pixel_size_xy_mm[0]
     rois = create_circle_of_rois(8, roi_diameter_px, roi_distcent_px, image_center_xy_px[0], image_center_xy_px[1])
-
-    #
-    # loop on the ROIs, extract the pixels and calculate the average HU
-    #
-    hu_values = []
-    for i_roi, roi in enumerate(rois):
-        [y1, y2, x1, x2] = roi.yx_indexes()
-        for image in images:
-            roi_image = image[y1:y2, x1:x2]  # (!) in "numpy images" the 1st coordinate is y
-            hu = np.mean(roi_image)
-            hu_values.append(hu)
-    print(np.mean(hu_values))
-
-    import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
     ax.imshow(images[0], cmap=plt.cm.bone, vmin=-255, vmax=255)
@@ -131,3 +138,31 @@ if __name__ == '__main__':
         rect = patches.Rectangle((x, y), roi.size(), roi.size(), linewidth=1, edgecolor='r', facecolor='none')
         ax.add_patch(rect)
     plt.show()
+
+    #
+    # loop on the ROIs, extract the pixels and calculate the ROI values
+    #
+    hu_values = []
+    nps_series = []
+    for i_roi, roi in enumerate(rois):
+        [y1, y2, x1, x2] = roi.yx_indexes()
+        for image in images:
+            roi_pixels = image[y1:y2, x1:x2]  # (!) in "numpy images" the 1st coordinate is y
+            # do stuff with the ROI pixels
+            hu = np.mean(roi_pixels)
+            hu_values.append(hu)
+            # nps
+            # subtract mean value
+            roi_sub = roi_pixels - np.mean(roi_pixels)
+            val = np.abs(np.fft.fftshift(np.fft.fftn(roi_sub))) ** 2
+            nps_series.append(val)
+    print(np.mean(hu_values))
+    # applying formula for 2D NPS
+    norm = np.prod(pixel_size_xy_mm)/(rois[0].size()**2)
+    nps_2d = norm * np.mean(np.array(nps_series), axis=0)
+    # radial average of 2D NPS
+    nps_1d = radial_average(nps_2d)
+
+
+
+

@@ -91,20 +91,6 @@ def find_phantom_center_and_size(numpy_array):
     return [center_x, center_y], max_r
 
 
-def radial_average(nps_2d_array):
-    return [0]
-
-
-def radial_profile(data, center):
-    y, x = np.indices(data.shape)
-    r = np.sqrt((x - data.shape[1]/2)**2 + (y - data.shape[0]/2)**2)
-    r = r.astype(np.int)
-    tbin = np.bincount(r.ravel(), data.ravel())
-    nr = np.bincount(r.ravel())
-    radialprofile = tbin / nr
-    return radialprofile
-
-
 if __name__ == '__main__':
     #
     # read the images
@@ -129,19 +115,21 @@ if __name__ == '__main__':
     roi_distcent_px = NPS_ROI_DISTCENT_MM / pixel_size_xy_mm[0]
     rois = create_circle_of_rois(8, roi_diameter_px, roi_distcent_px, image_center_xy_px[0], image_center_xy_px[1])
 
-    fig, ax = plt.subplots()
-    ax.imshow(images[0], cmap=plt.cm.bone, vmin=-255, vmax=255)
-    import matplotlib.patches as patches
-    for roi in rois:
-        x = roi.edge_l()
-        y = roi.edge_t()
-        rect = patches.Rectangle((x, y), roi.size(), roi.size(), linewidth=1, edgecolor='r', facecolor='none')
-        ax.add_patch(rect)
-    plt.show()
+    #fig, ax = plt.subplots()
+    #ax.imshow(images[0], cmap=plt.cm.bone, vmin=-255, vmax=255)
+    #import matplotlib.patches as patches
+    #for roi in rois:
+    #    x = roi.edge_l()
+    #    y = roi.edge_t()
+    #    rect = patches.Rectangle((x, y), roi.size(), roi.size(), linewidth=1, edgecolor='r', facecolor='none')
+    #    ax.add_patch(rect)
+    #plt.show()
 
     #
     # loop on the ROIs, extract the pixels and calculate the ROI values
     #
+    num_samples = 128
+    fft_size = [num_samples, num_samples]  # size of the FFT field
     hu_values = []
     nps_series = []
     for i_roi, roi in enumerate(rois):
@@ -154,15 +142,65 @@ if __name__ == '__main__':
             # nps
             # subtract mean value
             roi_sub = roi_pixels - np.mean(roi_pixels)
-            val = np.abs(np.fft.fftshift(np.fft.fftn(roi_sub))) ** 2
+            val = np.abs(np.fft.fftshift(np.fft.fftn(roi_sub, fft_size))) ** 2
             nps_series.append(val)
-    print(np.mean(hu_values))
     # applying formula for 2D NPS
     norm = np.prod(pixel_size_xy_mm)/(rois[0].size()**2)
     nps_2d = norm * np.mean(np.array(nps_series), axis=0)
     # radial average of 2D NPS
-    nps_1d = radial_average(nps_2d)
+
+    def calculate_fft_frequencies(num_samples, pixel_size_mm):
+        sampling_rate = 1 / pixel_size_mm
+        frequency_spacing = sampling_rate / num_samples
+        frequencies = [frequency_spacing * ns for ns in range(num_samples)]
+        frequencies_shifted = np.fft.fftshift(frequencies)
+        dc_index = np.where(frequencies_shifted == 0)[0][0]
+        frequencies = [f - frequencies[dc_index] for f in frequencies]
+        return frequencies
+
+
+    def histc(x, bins):
+        map_to_bins = np.digitize(x, bins)  # Get indices of the bins to which each value in input array belongs.
+        res = np.zeros(len(bins))
+        for el in map_to_bins:
+            res[el - 1] += 1  # Increment appropriate bin.
+        return res
+
+    def radial_profile(r_matrix, data_matrix):
+        r_values = np.linspace(0, 2, num_samples)  # arbitrary range [0,2]
+        bin_matrix = np.digitize(r_matrix, r_values)
+        p_values = np.zeros(r_values.shape)
+        for b in range(num_samples):
+            bin_contributors = data_matrix[bin_matrix == b]
+            p_values[b] = np.mean(bin_contributors) if len(bin_contributors) > 0 else None
+            print(b, p_values[b])
+        # interpolate empty bins with values from neighbors
+        return r_values, p_values
+
+
+    from actilib.helpers.math import cart2pol
+    fx = calculate_fft_frequencies(fft_size[0], pixel_size_xy_mm[0])
+    fy = calculate_fft_frequencies(fft_size[1], pixel_size_xy_mm[1])
+    mesh_fx, mesh_fy = np.meshgrid(fx, fy)
+    ignore, fr = cart2pol(mesh_fx, mesh_fy)
+    nps_f, nps_1d = radial_profile(fr, nps_2d)
+    print(nps_1d)
+    # print(nps_1d.shape)
+    #plt.imshow(nps_2d, cmap=plt.cm.bone)
+    plt.plot(nps_f, nps_1d)
+    plt.show()
+
+# Fr = x is a 128x128 matrix with values going from 0.9 to 0.9 in the corners, 0 in the middle
+# xbinned are 128 numbers going from 0 to 2, where 2 is "fRange" (arbitrary)
+# whichBin is a 128x128 matrix with the bin number relative to xbinned for each element of x
 
 
 
+# fx = getFFTfrequency(psize(1),padSize);
+# fy = getFFTfrequency(psize(2),padSize);
+# [Fx,Fy]=meshgrid(fx,fy);
+# [~,Fr]=cart2pol(Fx,Fy);
+# edges = linspace(fRange(1),fRange(2),fSamples);
+# [f, nps, rvar] = rebinData(Fr, nps_2d, edges, 0);
+# nps=nps';
 

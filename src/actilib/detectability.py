@@ -1,12 +1,7 @@
 import math
 import numpy as np
 import scipy.interpolate
-
-
-def cart2pol(x, y):
-    rho = np.sqrt(x**2 + y**2)
-    phi = np.arctan2(y, x)
-    return rho, phi
+from helpers.math import cart2pol
 
 
 def get_dprime_default_params():
@@ -25,7 +20,7 @@ def get_dprime_default_params():
 def calculate_radial_mesh(params):
     x = [(i * params['pixel_size_mm'] - params['fov_mm'] / 2.0) for i in range(params['pixel_number'])]
     mesh_x, mesh_y = np.meshgrid(x, x)
-    mesh_r, mesh_a = cart2pol(mesh_x, mesh_y)
+    mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
     return mesh_r
 
 
@@ -59,7 +54,7 @@ def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
     freq_x = get_fft_frequency(pixel_size_mm, pixel_number)
     freq_y = freq_x
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
-    mesh_r, mesh_a = cart2pol(mesh_x, mesh_y)
+    mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
     ttf_resampled = np.interp(mesh_r, data_freq['ttf_f'], data_ttf['TTF'], 0, 0)  # linear by definition
     return ttf_resampled
 
@@ -70,7 +65,7 @@ def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D')
     freq_y = freq_x
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     if mode == 'radial':
-        mesh_r, mesh_a = cart2pol(mesh_x, mesh_y)
+        mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
         nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['NPS'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
         ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['NPS_2D'],

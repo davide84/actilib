@@ -5,7 +5,7 @@ import pkgutil
 
 
 def load_test_data():
-    return json.loads(pkgutil.get_data('actilib', os.path.join('resources', 'test_data.json')).decode("utf-8"))
+    return json.loads(pkgutil.get_data('actilib', os.path.join('../resources', 'test_data.json')).decode("utf-8"))
 
 
 class ListBuffer:

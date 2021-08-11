@@ -16,8 +16,8 @@ class PixelROI:
         self._right = int(self._center_x + self._size / 2 + pixel_offset)
         self._top = int(self._center_y - self._size / 2 + pixel_offset)
         self._bottom = int(self._center_y + self._size / 2 + pixel_offset)
-        print('Built ROI with center in ({},{}) and size {} -> {}'.format(
-            center_x, center_y, size, self.yx_indexes()))
+        # print('Built ROI with center in ({},{}) and size {} -> {}'.format(
+        #     center_x, center_y, size, self.yx_indexes()))
 
     def size(self):
         return self._size

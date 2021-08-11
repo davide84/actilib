@@ -26,7 +26,7 @@ def main():
             images.append(apply_modality_lut(dicom_data.pixel_array, dicom_data))
     pixel_size_xy_mm = np.array(dicom_data.PixelSpacing)
     image_size_xy_px = np.array([len(images[0]), len(images[0][0])])
-    image_center_xy_px, section_radius_px = find_phantom_center_and_radius(images[0])
+    image_center_xy_px, section_radius_px = find_phantom_center_and_radius(images)
 
     #
     # create and visualize the ROIs

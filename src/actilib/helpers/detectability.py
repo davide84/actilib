@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import scipy.interpolate
-from helpers.math import cart2pol
+from actilib.helpers.math import cart2pol, fft_frequencies
 
 
 def get_dprime_default_params():
@@ -38,20 +38,9 @@ def calculate_task_image(params):
     return contrast_weight
 
 
-def get_fft_frequency(pixel_size_mm, pixel_number):
-    spatial_frequency = 1.0 / pixel_size_mm
-    frequency_spacing = spatial_frequency / pixel_number
-    indices = np.arange(pixel_number)
-    unshifted_frequencies = indices * frequency_spacing
-    shifted_frequencies = np.fft.fftshift(unshifted_frequencies)
-    constant_index = np.where(shifted_frequencies == 0)[0][0]
-    unshifted_frequencies = unshifted_frequencies - unshifted_frequencies[constant_index]
-    return unshifted_frequencies
-
-
 def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
     """Resample a TTF array to match a task meshgrid"""
-    freq_x = get_fft_frequency(pixel_size_mm, pixel_number)
+    freq_x = fft_frequencies(pixel_number, pixel_size_mm)
     freq_y = freq_x
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
@@ -61,7 +50,7 @@ def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
 
 def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D'):
     """Resample a NPS array to match a task meshgrid"""
-    freq_x = get_fft_frequency(pixel_size_mm, pixel_number)
+    freq_x = fft_frequencies(pixel_number, pixel_size_mm)
     freq_y = freq_x
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     if mode == 'radial':

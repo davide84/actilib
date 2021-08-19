@@ -30,7 +30,9 @@ def find_circles(numpy_image, expected_radius_px, tolerance_px=1):
     Return a list of coordinates for circles matching the desired radius
     """
     circles = []
-    ret, thr = cv.threshold(numpy_image.astype(np.uint8), 100, 255, 0)
+    ret, thr = cv.threshold(numpy_image.astype(np.uint8), 0, 255, 0)
+    img = numpy_image.astype(np.uint8)
+    thr = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
     contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     for c in contours:
         [x, y], r = cv.minEnclosingCircle(c)

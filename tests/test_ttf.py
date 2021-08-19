@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pkg_resources
 from actilib.helpers.geometry import find_phantom_center_and_radius, find_circles
-from actilib.helpers.display import plot_image_with_rois
+from actilib.helpers.rois import PixelROI
 from actilib.helpers.general import load_images_from_tar
 from actilib.helpers.rois import create_circle_of_rois
 
@@ -26,16 +26,16 @@ def main():
     #
     # find the inserts
     #
-    circles = find_circles(images[0], 15/pixel_size_xy_mm[0], 10)
-    print(1.5, pixel_size_xy_mm[0], 15/pixel_size_xy_mm[0])
-    print(len(circles))
-    print(circles)
+    circles = find_circles(images[0], 25/pixel_size_xy_mm[0], 5)
+    print(1.5, pixel_size_xy_mm[0], 25/pixel_size_xy_mm[0])
+    rois = []
 
-    roi_diameter_px = (NPS_ROI_DIAMETER_MM + 5) / pixel_size_xy_mm[0]
-    roi_distcent_px = (NPS_ROI_DISTCENT_MM + 10) / pixel_size_xy_mm[0]
-    rois = create_circle_of_rois(5, roi_diameter_px, roi_distcent_px,
-                                 image_center_xy_px[0], image_center_xy_px[1],
-                                 angle_offset_deg=42, roi_shape='circular')
+    import cv2
+    circles = cv2.HoughCircles(images[0].astype(np.uint8), cv2.HOUGH_GRADIENT, 1, 10,
+                               param1=50, param2=20, minRadius=25, maxRadius=35)
+    for circle in circles[0]:
+        print(circle)
+        rois.append(PixelROI(circle[0], circle[1], circle[2], shape='circular'))
 
     from actilib.helpers.display import plot_image_with_rois
     plot_image_with_rois(images[0], headers[0], rois)

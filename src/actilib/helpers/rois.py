@@ -44,6 +44,12 @@ class PixelROI:
     def edge_r(self):
         return self._right
 
+    def center_x(self):
+        return self._center_x
+
+    def center_y(self):
+        return self._center_y
+
     def yx_indexes(self):
         return [self._top, self._bottom, self._left, self._right]
 
@@ -66,11 +72,11 @@ class PixelROI:
 
 
 def create_circle_of_rois(num_rois, roi_size_px, distance_from_center_px,
-                          circle_center_x_px=0, circle_center_y_px=0, angle_offset_deg=0):
+                          circle_center_x_px=0, circle_center_y_px=0, angle_offset_deg=0, roi_shape='square'):
     angle_offset_rad = rad_from_deg(angle_offset_deg)  # angle 0 is at 3 o' clock
     angle_spacing_rad = 2 * math.pi / num_rois
     angles_rad = [angle_offset_rad + r * angle_spacing_rad for r in range(num_rois)]
     return [PixelROI(circle_center_x_px + distance_from_center_px * math.cos(angle),
                      circle_center_y_px + distance_from_center_px * math.sin(angle),
-                     roi_size_px) for angle in angles_rad]
+                     roi_size_px, roi_shape) for angle in angles_rad]
 

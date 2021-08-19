@@ -2,7 +2,7 @@ import numpy as np
 from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth
 
 
-def background_properties(image_series, roi_series, pixel_size, fft_samples=128):
+def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
     try:
         pixel_size_x = pixel_size[0]
         pixel_size_y = pixel_size[1]
@@ -22,8 +22,8 @@ def background_properties(image_series, roi_series, pixel_size, fft_samples=128)
     for i_roi, roi in enumerate(roi_series):
         [y1, y2, x1, x2] = roi.yx_indexes()
         norm = np.prod(pixel_size) / (roi.size() ** 2)
-        for i_image, image in enumerate(image_series):
-            roi_pixels = image[y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
+        for i_image, dicom_image in enumerate(dicom_images):
+            roi_pixels = dicom_image[y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
             # do stuff with the ROI pixels
             hu = np.mean(roi_pixels)
             hu_series.append(hu)

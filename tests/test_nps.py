@@ -1,10 +1,8 @@
 import numpy as np
 import os
 import pkg_resources
-import tarfile
 import unittest
-from pydicom import dcmread
-from pydicom.pixel_data_handlers.util import apply_modality_lut
+from actilib.helpers.general import load_images_from_tar
 from actilib.helpers.geometry import find_phantom_center_and_radius
 from actilib.helpers.noise import background_properties
 from actilib.helpers.rois import create_circle_of_rois
@@ -20,14 +18,9 @@ class TestStringMethods(unittest.TestCase):
         #
         # read the images and basic properties
         #
-        images = []
         tarpath = pkg_resources.resource_filename('actilib', os.path.join('resources', 'dicom_nps.tar.xz'))
-        with tarfile.open(tarpath, encoding='utf-8') as file_tar:
-            for file_name in file_tar.getmembers():
-                file_dcm = file_tar.extractfile(file_name)
-                dicom_data = dcmread(file_dcm)
-                images.append(apply_modality_lut(dicom_data.pixel_array, dicom_data))
-        pixel_size_xy_mm = np.array(dicom_data.PixelSpacing)
+        images, headers = load_images_from_tar(tarpath)
+        pixel_size_xy_mm = np.array(headers[0].PixelSpacing)
         image_size_xy_px = np.array([len(images[0]), len(images[0][0])])
         image_center_xy_px, section_radius_px = find_phantom_center_and_radius(images)
         self.assertEqual(len(images), 16)
@@ -40,7 +33,7 @@ class TestStringMethods(unittest.TestCase):
         self.assertAlmostEqual(section_radius_px, 177.685, delta=0.001)
 
         #
-        # create and visualize the ROIs
+        # create the ROIs using image pixel coordinates as reference system
         #
         roi_diameter_px = NPS_ROI_DIAMETER_MM / pixel_size_xy_mm[0]
         roi_distcent_px = NPS_ROI_DISTCENT_MM / pixel_size_xy_mm[0]

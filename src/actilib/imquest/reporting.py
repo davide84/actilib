@@ -258,7 +258,7 @@ def _add_section(pdf_doc, section_title):
     _add_horizontal_line(pdf_doc, 0)
 
 
-def generate_report(data):
+def generate_report(data, report_filename='imquest_report.pdf'):
     pdf = FPDF()
 
     # title
@@ -368,4 +368,4 @@ def generate_report(data):
         pdf.cell(20, pdf.font_size + 2, repo['BranchName'], 0, 2, 'R')
 
     # writeout
-    pdf.output('test.pdf', 'F')
+    pdf.output(report_filename, 'F')

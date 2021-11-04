@@ -1,11 +1,9 @@
-import pkgutil
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.ticker import AutoMinorLocator
 import numpy as np
 import math
 import tempfile
-import json
-import os.path as path
 from datetime import datetime
 from fpdf import FPDF
 from tabulate import tabulate
@@ -32,28 +30,33 @@ def _plot_patches(ax, z, values, color):
             i_l = 0
 
 
-def plot_current_profile(full_data):
+def plot_profile(full_data):
     plt.clf()
-    curr_data = full_data['values_current']
+    prof_data = full_data['values_profile']
     slice_data = full_data['values_slices']
-    scout_image = json.loads(pkgutil.get_data(__name__, path.join('../resources', 'scout_image.json')).decode("utf-8"))
-    # plot the current
+    # plot the current (or CTDIvol...)
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8, 6)
     axs.set_xlabel('Slice Position [mm]')
-    axs.set_ylim(curr_data['ma']['limits'])
-    axs.set_yticks(range(0, curr_data['ma']['limits'][1], 5))
-    axs.set_ylabel(curr_data['ma']['label'])
-    axs.plot(slice_data['z'], curr_data['ma']['values'], 'r')
+    axs.set_ylim(prof_data['profile']['limits'])
+    axs.yaxis.set_minor_locator(AutoMinorLocator())
+    y_label = prof_data['profile']['label'].replace('_{', '$_{').replace('}', '}$')  # fix the subscript
+    axs.set_ylabel(y_label)
+    axs.plot(slice_data['z'], prof_data['profile']['values'], 'red')
+    axs.yaxis.label.set_color('red')
+    axs.tick_params(axis='y', colors='red')
     axs.set_zorder(1)
     axs.patch.set_visible(False)
     # plot the background image and the WED curve on the secondary axis
+    scout_image = prof_data['scout_image']
     sec_ymax = len(scout_image)
     secax = axs.twinx()
     secax.set_ylim([0, sec_ymax])
     secax.set_ylabel('Water Equivalent Diameter [mm]')
-    secax.imshow(scout_image, cmap='gray', extent=[slice_data['z'][-1], slice_data['z'][0], 0, sec_ymax], aspect='auto')
-    secax.plot(slice_data['z'], curr_data['wed'], 'b')
+    secax.imshow(scout_image, cmap='gray', extent=[slice_data['z'][0], slice_data['z'][-1], 0, sec_ymax], aspect='auto')
+    secax.plot(slice_data['z'], prof_data['wed'], 'blue')
+    secax.yaxis.label.set_color('blue')
+    secax.tick_params(axis='y', colors='blue')
     # plot the locations
     _plot_patches(secax, slice_data['z'], slice_data['is_nps'], 'y')
     _plot_patches(secax, slice_data['z'], slice_data['is_ttf'], 'g')
@@ -280,7 +283,7 @@ def generate_report(data, report_filename='imquest_report.pdf'):
     # tube current profile
     pdf.add_page()
     _add_section(pdf, 'Tube Current Profile')
-    pdf.image(plot_current_profile(data), x=0, w=200, h=150)
+    pdf.image(plot_profile(data), x=0, w=200, h=150)
 
     # noise properties
     pdf.add_page()

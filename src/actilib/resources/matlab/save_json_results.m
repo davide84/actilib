@@ -84,6 +84,11 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
     % Tube Current profile
     % ---------------------------------------------------------------------
     cp = struct();
+    % Scout image
+    scout_mean = mat2gray(squeeze(mean(getImageSlices(res.tool.handles.imtool,1,res.tool.CTImageSize(3)),2)));
+    scout_mip = mat2gray(squeeze(max(getImageSlices(res.tool.handles.imtool,1,res.tool.CTImageSize(3)),[],2)));
+    scout_image = (2/3)*scout_mean + (1/3)*scout_mip;
+    cp.scout_image = round(scout_image * 10^3);
     % Create mA profile
     for i=1:res.tool.CTImageSize(3)  % loop on the axial slices
         if isfield(res.tool.DICOMheaders,'CTDIvol')
@@ -119,14 +124,14 @@ function ret = save_json_results(json_file_path, res, flag_gzip)
     else
         ylims = [ylims(1) ylims(ind+1)];
     end
-    cp.ma = struct();
-    cp.ma.values = mA;
-    cp.ma.label = ylab;
-    cp.ma.limits = ylims;
+    cp.profile = struct();
+    cp.profile.values = mA;
+    cp.profile.label = ylab;
+    cp.profile.limits = ylims;
     % Create WED profile
     cp.wed = getWEDfromCT(getImage(res.tool.handles.imtool),res.tool.CTpsize(1));
     % final current profile
-    ret.values_current = cp;
+    ret.values_profile = cp;
 
     % HU values
     % ---------------------------------------------------------------------

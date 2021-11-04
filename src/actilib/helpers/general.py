@@ -8,7 +8,7 @@ from pydicom.pixel_data_handlers import apply_rescale
 
 
 def load_test_data():
-    return json.loads(pkgutil.get_data('actilib', os.path.join('../resources', 'test_data.json')).decode("utf-8"))
+    return json.loads(pkgutil.get_data('actilib', os.path.join('resources', 'test_data.json')).decode("utf-8"))
 
 
 def load_images_from_tar(tarpath):

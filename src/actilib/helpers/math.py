@@ -2,12 +2,20 @@ import math
 import numpy as np
 
 
+def deg_from_rad(rad):
+    return rad * 360 / (2 * math.pi)
+
+
 def rad_from_deg(deg):
     return deg * 2 * math.pi / 360.0
 
 
 def cart2pol(x, y):
     return np.arctan2(y, x), np.sqrt(x**2 + y**2)
+
+
+def pol2cart(theta, rho):
+    return rho * np.cos(theta), rho * np.sin(theta)
 
 
 def polyfit2d(x, y, z, order=2):

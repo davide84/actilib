@@ -23,7 +23,7 @@ def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128)
         [y1, y2, x1, x2] = roi.yx_indexes()
         norm = np.prod(pixel_size) / (roi.size() ** 2)
         for i_image, dicom_image in enumerate(dicom_images):
-            roi_pixels = dicom_image[y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
+            roi_pixels = dicom_image['pixels'][y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
             # do stuff with the ROI pixels
             hu = np.mean(roi_pixels)
             hu_series.append(hu)

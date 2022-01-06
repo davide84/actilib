@@ -9,8 +9,7 @@ def find_phantom_center_and_radius(dicom_images):
     centers_y = []
     radii = []
     for dicom_image in dicom_images:
-        numpy_image = dicom_image
-        ret, thr = cv.threshold(numpy_image.astype(np.uint8), 100, 255, 0)
+        ret, thr = cv.threshold(dicom_image['window'].astype(np.uint8), 100, 255, 0)
         contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         max_r = 0
         [center_x, center_y] = [0, 0]
@@ -22,7 +21,11 @@ def find_phantom_center_and_radius(dicom_images):
         centers_x.append(center_x)
         centers_y.append(center_y)
         radii.append(max_r)
-    return [np.mean(centers_x), np.mean(centers_y)], np.mean(radii)
+    pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
+    radius_factor_mm = ((pixel_size_xy_mm[0]**2 + pixel_size_xy_mm[1]**2) / 2)**0.5
+    ret_xy = [np.mean(centers_x), np.mean(centers_y)]
+    ret_r = np.mean(radii)
+    return ret_xy, ret_r, np.multiply(ret_xy, pixel_size_xy_mm), ret_r * radius_factor_mm
 
 
 def find_circles(numpy_image, expected_radius_px, tolerance_px=1):
@@ -30,8 +33,10 @@ def find_circles(numpy_image, expected_radius_px, tolerance_px=1):
     Return a list of coordinates for circles matching the desired radius
     """
     circles = []
-    ret, thr = cv.threshold(numpy_image.astype(np.uint8), 0, 255, 0)
     img = numpy_image.astype(np.uint8)
+    ret, thrimg = cv.threshold(img, 127, 255, 0)
+    # from actilib.helpers.display import display_pixels
+    # display_pixels(thrimg)
     thr = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
     contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     for c in contours:

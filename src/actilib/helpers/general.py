@@ -5,6 +5,7 @@ import pkgutil
 import tarfile
 from pydicom import dcmread
 from pydicom.pixel_data_handlers import apply_rescale
+from pydicom.pixel_data_handlers.util import apply_windowing
 
 
 def load_test_data():
@@ -13,15 +14,16 @@ def load_test_data():
 
 def load_images_from_tar(tarpath):
     images = []
-    headers = []
     with tarfile.open(tarpath, encoding='utf-8') as file_tar:
         for file_name in file_tar.getmembers():
+            images.append({'header': None, 'pixels': None, 'window': None})
             file_dcm = file_tar.extractfile(file_name)
             dicom_data = dcmread(file_dcm)
-            images.append(apply_rescale(dicom_data.pixel_array, dicom_data))  # to have proper HU values
+            images[-1]['pixels'] = apply_rescale(dicom_data.pixel_array, dicom_data)  # to have proper HU values
+            images[-1]['window'] = apply_windowing(images[-1]['pixels'], dicom_data)  # standard contrast for analysis
             file_dcm.seek(0)
-            headers.append(dcmread(file_dcm, stop_before_pixels=True))  # separated from pixels due to transf. above
-    return images, headers
+            images[-1]['header'] = dcmread(file_dcm, stop_before_pixels=True)
+    return images
 
 
 class ListBuffer:

@@ -67,8 +67,20 @@ class PixelROI:
                 ret_mask[max(0, self.edge_l()):min(image_size_x, self.edge_r()),
                          max(0, self.edge_t()):min(image_size_y, self.edge_b())] = 1
         elif self._shape == 'circular':
-            raise NotImplemented('Circular ROIs not yet implemented')
-        return ret_mask
+            grid_y, grid_x = np.ogrid[:image_size_y, :image_size_x]
+            dist_from_center = np.sqrt((grid_x - self._center_x) ** 2 + (grid_y - self._center_y) ** 2)
+            ret_mask[dist_from_center <= self._size] = 1
+        else:
+            raise NotImplemented('Shape "{}" is not implemented for ROIs.'.format(self._shape))
+        return ret_mask.astype(np.uint8)
+
+    def get_mask_sum(self, pixels):
+        mask = self.get_mask(len(pixels[0]), len(pixels))
+        return np.sum(np.multiply(pixels, mask))
+
+    def get_mask_mean(self, pixels):
+        mask = self.get_mask(len(pixels[0]), len(pixels))
+        return np.sum(np.multiply(pixels, mask)) / np.sum(mask)
 
 
 def create_circle_of_rois(num_rois, roi_size_px, distance_from_center_px,

@@ -37,8 +37,8 @@ def main():
         print(circle)
         rois.append(PixelROI(circle[0], circle[1], circle[2], shape='circular'))
 
-    from actilib.helpers.display import plot_image_with_rois
-    plot_image_with_rois(images[0], headers[0], rois)
+    from actilib.helpers.display import display_image_with_rois
+    display_image_with_rois(images[0], headers[0], rois)
 
     #
     # create the ROIs using image pixel coordinates as reference system

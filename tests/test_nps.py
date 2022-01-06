@@ -19,18 +19,18 @@ class TestStringMethods(unittest.TestCase):
         # read the images and basic properties
         #
         tarpath = pkg_resources.resource_filename('actilib', os.path.join('resources', 'dicom_nps.tar.xz'))
-        images, headers = load_images_from_tar(tarpath)
-        pixel_size_xy_mm = np.array(headers[0].PixelSpacing)
-        image_size_xy_px = np.array([len(images[0]), len(images[0][0])])
-        image_center_xy_px, section_radius_px = find_phantom_center_and_radius(images)
+        images = load_images_from_tar(tarpath)
+        pixel_size_xy_mm = np.array(images[0]['header'].PixelSpacing)
+        image_size_xy_px = np.array([len(images[0]['pixels']), len(images[0]['pixels'][0])])
+        image_center_xy_px, section_radius_px, _, section_radius_mm = find_phantom_center_and_radius(images)
         self.assertEqual(len(images), 16)
         self.assertAlmostEqual(pixel_size_xy_mm[0], 0.769, delta=0.001)
         self.assertAlmostEqual(pixel_size_xy_mm[1], 0.769, delta=0.001)
         self.assertEqual(image_size_xy_px[0], 512)
         self.assertEqual(image_size_xy_px[1], 512)
-        self.assertAlmostEqual(image_center_xy_px[0], 259.855, delta=0.001)
-        self.assertAlmostEqual(image_center_xy_px[1], 257.358, delta=0.001)
-        self.assertAlmostEqual(section_radius_px, 177.685, delta=0.001)
+        self.assertAlmostEqual(image_center_xy_px[0], 258, delta=1)
+        self.assertAlmostEqual(image_center_xy_px[1], 256, delta=1)
+        self.assertAlmostEqual(2*section_radius_mm, 260, delta=3)
 
         #
         # create the ROIs using image pixel coordinates as reference system
@@ -45,15 +45,15 @@ class TestStringMethods(unittest.TestCase):
         #
         prop = background_properties(images, rois, pixel_size_xy_mm)
         self.assertAlmostEqual(prop['hu'], -67.306, delta=0.001)
-        self.assertAlmostEqual(prop['noise'], 11.866, delta=0.001)
-        self.assertAlmostEqual(prop['noise_std'], 0.820, delta=0.001)
+        self.assertAlmostEqual(prop['noise'], 11.8, delta=0.1)
+        self.assertAlmostEqual(prop['noise_std'], 0.8, delta=0.1)
         self.assertAlmostEqual(prop['f1d'][2], 0.031, delta=0.001)
         self.assertAlmostEqual(prop['f2d_x'][1], -0.639, delta=0.001)
         self.assertEqual(len(prop['f2d_y']), 128)
         self.assertAlmostEqual(prop['fpeak'], 0.0787, delta=0.001)
         self.assertAlmostEqual(prop['fmean'], 0.209, delta=0.001)
         self.assertAlmostEqual(prop['nps_1d'][3], 350, delta=30)
-        self.assertAlmostEqual(prop['nps_2d'][0][0], 0.475, delta=0.001)
+        self.assertAlmostEqual(prop['nps_2d'][0][0], 0.54, delta=0.01)
 
 
 if __name__ == '__main__':

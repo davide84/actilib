@@ -32,9 +32,9 @@ def display_image_with_rois(image, rois, flag_show=True):
     fig, ax = display_image(image, False)
     for roi in rois:
         if roi.shape() == 'square':
-            add_square_on_image(ax, roi.edge_l(), roi.edge_t(), roi.size(), roi.size())
-        elif roi.shape() == 'circular':
-            add_circle_on_image(ax, roi.center_x(), roi.center_y(), roi.size()/2)
+            add_square_on_image(ax, roi.edge_l(), roi.edge_t(), roi.side(), roi.side())
+        elif roi.shape() == 'circle':
+            add_circle_on_image(ax, roi.center()[1], roi.center()[0], roi.radius())
     if flag_show:
         plt.show()
 

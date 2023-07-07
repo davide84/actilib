@@ -12,17 +12,34 @@ def load_test_data():
     return json.loads(pkgutil.get_data('actilib', os.path.join('resources', 'test_data.json')).decode("utf-8"))
 
 
+def load_image_from_file(input_file):
+    dicom_data = dcmread(input_file)
+    image = {
+        'pixels': apply_rescale(dicom_data.pixel_array, dicom_data)  # to have proper HU values
+    }
+    image['window'] = apply_windowing(image['pixels'], dicom_data)  # standard contrast for analysis
+    input_file.seek(0)
+    image['header'] = dcmread(input_file, stop_before_pixels=True)
+    return image
+
+
 def load_images_from_tar(tarpath):
     images = []
     with tarfile.open(tarpath, encoding='utf-8') as file_tar:
         for file_name in file_tar.getmembers():
             images.append({'header': None, 'pixels': None, 'window': None})
             file_dcm = file_tar.extractfile(file_name)
-            dicom_data = dcmread(file_dcm)
-            images[-1]['pixels'] = apply_rescale(dicom_data.pixel_array, dicom_data)  # to have proper HU values
-            images[-1]['window'] = apply_windowing(images[-1]['pixels'], dicom_data)  # standard contrast for analysis
-            file_dcm.seek(0)
-            images[-1]['header'] = dcmread(file_dcm, stop_before_pixels=True)
+            images.append(load_image_from_file(file_dcm))
+    return images
+
+
+def load_images_from_directory(dir_path):
+    images = []
+    with os.scandir(dir_path) as it:
+        for entry in it:
+            if entry.is_file():
+                with open(entry.path, 'rb+') as f:
+                    images.append(load_image_from_file(f))
     return images
 
 

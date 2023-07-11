@@ -92,7 +92,7 @@ def radial_profile(y_data, r_data, bin_number, bin_range):
     return bin_edges, y_values, v_values
 
 
-def esf2ttf(esf, distance, bin_width, hann_window=15):
+def esf2ttf(esf, bin_width, hann_window=15):
     # preparation: we search the two bins corresponding to 15% and 85% of the ESF curve
     # and we calculate the extremities of the Hann window in terms of bin indexes
     esf_min = min(esf)

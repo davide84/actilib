@@ -27,9 +27,8 @@ def load_images_from_tar(tarpath):
     images = []
     with tarfile.open(tarpath, encoding='utf-8') as file_tar:
         for file_name in file_tar.getmembers():
-            images.append({'header': None, 'pixels': None, 'window': None})
             file_dcm = file_tar.extractfile(file_name)
-            images.append(load_image_from_file(file_dcm))
+            images.append(load_image_from_file(file_dcm))  # image = {'header': None, 'pixels': None, 'window': None}
     return images
 
 

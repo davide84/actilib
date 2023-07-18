@@ -70,25 +70,56 @@ def smooth(x, window_size=5):
     return np.concatenate((start, out0, stop))
 
 
-def radial_profile(data_matrix, coord_x, coord_y=None):
-    if coord_y is None:
-        coord_y = coord_x
-    data_size = data_matrix.shape[0]  # assume a square data_matrix
-    mesh_x, mesh_y = np.meshgrid(coord_x, coord_y)
-    _, mesh_r = cart2pol(mesh_x, mesh_y)
-    r_values = np.linspace(0, np.ceil(2*np.abs(mesh_r[0, 0])), data_size)
-    bin_matrix = np.digitize(mesh_r, r_values)
-    p_values, v_values = np.zeros(r_values.shape), np.zeros(r_values.shape)
-    for b in range(r_values.size):
-        bin_contributors = data_matrix[bin_matrix == b]
-        if len(bin_contributors) > 0:
-            p_values[b] = np.mean(bin_contributors)
+def radial_profile(y_data, r_data, bin_number, bin_range):
+    # np.digitize(x, bins, right=False)
+    # Return the indices of the bins to which each value in input array belongs.
+    bin_edges = np.histogram_bin_edges(r_data, bins=bin_number, range=bin_range)  # OK validated
+    bin_index = np.digitize(r_data, bin_edges)  # OK but n Matlab it's flattened out???
+    # loop to average bin contributions
+    y_values, v_values = np.zeros(bin_edges.size), np.zeros(bin_edges.size)
+    for b in range(len(bin_edges)):
+        bin_contributors = y_data[bin_index == b]
+        if len(bin_contributors) > 0:  # separate the two cases to avoid numpy warnings in the output
+            y_values[b] = np.mean(bin_contributors)
             v_values[b] = np.var(bin_contributors)
         else:
-            p_values[b] = None
+            y_values[b] = None
             v_values[b] = None
     # interpolate bins with 'None' with values from neighbors
-    nans = np.isnan(p_values)
-    p_values[nans] = np.interp(r_values[nans], r_values[~nans], p_values[~nans], left=0.0, right=0.0)
-    v_values[nans] = np.interp(r_values[nans], r_values[~nans], v_values[~nans], left=0.0, right=0.0)
-    return r_values, p_values, v_values
+    nans = np.isnan(y_values)
+    y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans])
+    v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans])
+    return bin_edges, y_values, v_values
+
+
+def esf2ttf(esf, distance, bin_width, hann_window=15):
+    # preparation: we search the two bins corresponding to 15% and 85% of the ESF curve
+    # and we calculate the extremities of the Hann window in terms of bin indexes
+    esf_min = min(esf)
+    esf_max = max(esf)
+    esf_mid = (esf_max + esf_min) / 2.0  # middle value
+    esf_15p = esf_min + 0.15 * (esf_max - esf_min)
+    esf_85p = esf_min + 0.85 * (esf_max - esf_min)
+    esf_shifted_sorted_indexes = np.argsort(np.abs(esf - esf_mid))
+    bin_mid = esf_shifted_sorted_indexes[0]  # bin of middle value
+    if np.mean(esf[:bin_mid]) > np.mean(esf[bin_mid:]):  # ESF higher at the left -> roi_hu higher than background?
+        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][1]
+        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][-1]
+    else:
+        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][-1]
+        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][1]
+    bin_win = hann_window * abs(bin_85p - bin_15p)
+    bin_hann_min = max(bin_mid - bin_win, 0)
+    bin_hann_max = min(bin_mid + bin_win, len(esf) - 2)  # additional -1 because LSF will have 1 bin less
+    # derivation -> LSF
+    lsf = np.gradient(esf)
+    # Hann smoothing (https://en.wikipedia.org/wiki/Hann_function)
+    hann = np.zeros(lsf.size)
+    hann[bin_hann_min:bin_hann_max] = np.hanning(bin_hann_max - bin_hann_min)
+    lsf = np.multiply(lsf, hann)
+    # finally calculating the TTF
+    ttf = np.abs(np.fft.fftn(lsf))
+    ttf = ttf[0:math.floor(len(ttf)/2)]  # cutting second half of array
+    ttf = ttf / ttf[0]  # normalisation
+    frequencies = np.linspace(0, 0.5 / bin_width, len(ttf))
+    return frequencies, ttf

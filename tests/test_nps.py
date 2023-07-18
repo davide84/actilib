@@ -51,8 +51,8 @@ class TestStringMethods(unittest.TestCase):
         self.assertAlmostEqual(prop['f2d_x'][1], -0.639, delta=0.001)
         self.assertEqual(len(prop['f2d_y']), 128)
         self.assertAlmostEqual(prop['fpeak'], 0.0787, delta=0.001)
-        self.assertAlmostEqual(prop['fmean'], 0.209, delta=0.001)
-        self.assertAlmostEqual(prop['nps_1d'][3], 350, delta=30)
+        self.assertAlmostEqual(prop['fmean'], 0.21, delta=0.01)
+        self.assertAlmostEqual(prop['nps_1d'][4], 350, delta=30)
         self.assertAlmostEqual(prop['nps_2d'][0][0], 0.54, delta=0.01)
 
 

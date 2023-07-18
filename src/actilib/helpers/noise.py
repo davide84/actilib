@@ -1,5 +1,5 @@
 import numpy as np
-from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth
+from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth, cart2pol
 
 
 def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
@@ -34,7 +34,10 @@ def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128)
             var_series.append(np.sum(nps) * dfreq_x * dfreq_y)
     # applying formula for 2D NPS, then radial profile
     nps_2d = np.mean(np.array(nps_series), axis=0)
-    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, freq_x, freq_y)
+    mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
+    _, mesh_r = cart2pol(mesh_x, mesh_y)
+    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, bin_number=nps_2d.shape[0],
+                                                bin_range=[0, np.ceil(2 * np.abs(mesh_r[0, 0]))])
     nps_smooth = smooth(nps_1d)
     peak_freq = nps_freqs[np.argmax(nps_smooth)]
     mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))

@@ -70,11 +70,22 @@ def smooth(x, window_size=5):
     return np.concatenate((start, out0, stop))
 
 
-def radial_profile(y_data, r_data, bin_number, bin_range):
-    # np.digitize(x, bins, right=False)
-    # Return the indices of the bins to which each value in input array belongs.
-    bin_edges = np.histogram_bin_edges(r_data, bins=bin_number, range=bin_range)  # OK validated
-    bin_index = np.digitize(r_data, bin_edges)  # OK but n Matlab it's flattened out???
+def find_x_of_threshold(x, y, y_threshold):
+    bin_thr = np.argsort(np.abs(y - y_threshold))[0]  # approximate position (is an integer)
+    bin_min = max(bin_thr - 1, 0)
+    bin_max = min(bin_thr + 1, len(y) - 1)
+    # upsample to obtain sub-integer resolution
+    num_upsampling_bins = 50
+    x_upsampled = np.linspace(x[bin_min], x[bin_max], num_upsampling_bins)
+    y_upsampled = np.interp(x_upsampled, x, y)
+    bin_thr = np.argsort(np.abs(y_upsampled - y_threshold))[0]
+    return x_upsampled[bin_thr]
+
+
+def radial_profile(y_data, r_data, r_bins, r_range=None):
+    # r_bins and r_range work as the corresponding parameters of numpy.histogram_bin_edges
+    bin_edges = np.histogram_bin_edges(r_data, bins=r_bins, range=r_range)
+    bin_index = np.digitize(r_data, bin_edges)
     # loop to average bin contributions
     y_values, v_values = np.zeros(bin_edges.size), np.zeros(bin_edges.size)
     for b in range(len(bin_edges)):
@@ -92,7 +103,7 @@ def radial_profile(y_data, r_data, bin_number, bin_range):
     return bin_edges, y_values, v_values
 
 
-def esf2ttf(esf, bin_width, hann_window=15):
+def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     # preparation: we search the two bins corresponding to 15% and 85% of the ESF curve
     # and we calculate the extremities of the Hann window in terms of bin indexes
     esf_min = min(esf)
@@ -121,5 +132,8 @@ def esf2ttf(esf, bin_width, hann_window=15):
     ttf = np.abs(np.fft.fftn(lsf))
     ttf = ttf[0:math.floor(len(ttf)/2)]  # cutting second half of array
     ttf = ttf / ttf[0]  # normalisation
-    frequencies = np.linspace(0, 0.5 / bin_width, len(ttf))
-    return frequencies, ttf
+    frq = np.linspace(0, 0.5 / bin_width, len(ttf))
+    # resampling
+    frq_resampled = np.linspace(0, 2.0, num_samples)
+    ttf_resampled = np.interp(frq_resampled, frq, ttf)
+    return frq_resampled, ttf_resampled, lsf

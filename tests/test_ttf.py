@@ -40,7 +40,7 @@ def main():
     # print('nps1d =', prop['nps_1d'])
 
     # TTF test
-    prop = ttf_properties(images, [ttf_rois[0]], pixel_size_xy_mm)
+    prop = ttf_properties(images, [ttf_rois[0]], pixel_size_xy_mm, True)  # True -> averaging images
     print(prop)
 
 

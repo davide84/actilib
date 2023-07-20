@@ -46,4 +46,9 @@ def find_circles(numpy_image, expected_radius_px, tolerance_px=1):
     return circles
 
 
-
+def find_weighted_center(image):
+    mesh_x, mesh_y = np.meshgrid(range(len(image[0])), range(len(image)))
+    total = np.sum(image)
+    cx = np.sum(np.multiply(mesh_x, image)) / total
+    cy = np.sum(np.multiply(mesh_y, image)) / total
+    return cx, cy

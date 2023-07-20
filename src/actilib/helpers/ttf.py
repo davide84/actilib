@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from actilib.helpers.math import fft_frequencies, radial_profile, esf2ttf
 from actilib.helpers.rois import get_masked_image
 from actilib.helpers.display import display_image_with_rois
+from actilib.helpers.geometry import find_weighted_center
 
 
 def ttf_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
@@ -12,22 +13,17 @@ def ttf_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
     except TypeError:
         pixel_size_x = pixel_size
         pixel_size_y = pixel_size
-    # prepare variables
-    fft_size = [fft_samples, fft_samples]
-    freq_x = fft_frequencies(fft_samples, pixel_size_x)
-    freq_y = fft_frequencies(fft_samples, pixel_size_y)
-    dfreq_x = 1 / (pixel_size_x * fft_samples)
-    dfreq_y = 1 / (pixel_size_y * fft_samples)
-
     # loop over ROIs and images
     for i_roi, roi in enumerate(roi_series):
         # (!) in "numpy images" the 1st coordinate is y
-        [y1, y2, x1, x2] = roi.indexes_yx()
         fgd_list = []
         bkg_list = []
         cnr_list = []
         noi_list = []
         for i_image, image in enumerate(dicom_images):
+            # re-estimate center (precision needed for radial profile calculation)
+            roi.refine_center(image['pixels'])
+            # prepare masks and masked images
             mask_fgd = roi.get_annular_mask(image['pixels'], margin_outer=-roi.radius() * 0.1, margin_inner=-roi.radius())
             mask_bkg = roi.get_annular_mask(image['pixels'], margin_outer=roi.radius(), margin_inner=roi.radius()*0.8)
             image_masked_fgd = get_masked_image(image['pixels'], mask_fgd)
@@ -45,11 +41,6 @@ def ttf_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
             bkg_list.append(bkg)
             noi_list.append(noi)
             cnr_list.append(cnr)
-            # re-estimate center (precision needed for radial profile calculation)
-            # TODO
-            roi_cx = roi.center_x()
-            roi_cy = roi.center_y()
-            roi.set_center(roi_cx, roi_cy)
             # crop image and subtract background
             img_crop = image['pixels'][roi.edge_t(roi.radius()):roi.edge_b(roi.radius()),
                                        roi.edge_l(roi.radius()):roi.edge_r(roi.radius())] - bkg
@@ -65,7 +56,6 @@ def ttf_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
             #
             # calculate TTF from ESF
             frequencies, ttf = esf2ttf(esf, bin_width)
-            print(frequencies)
             plt.plot(frequencies, ttf)
             plt.xlim([0, 1.0])
             plt.show()

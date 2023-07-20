@@ -41,8 +41,8 @@ class PixelROI:
     def edge_r(self, margin=0.0):
         return int(self._center_x + self._size / 2 + margin + 0.5)  # 0.5 for basic rounding
 
-    def indexes_yx(self):
-        return [self.edge_t(), self.edge_b(), self.edge_l(), self.edge_r()]
+    def indexes_tblr(self, margin_px=0.0):
+        return [self.edge_t(margin_px), self.edge_b(margin_px), self.edge_l(margin_px), self.edge_r(margin_px)]
 
     def center_x(self):
         return self._center_x
@@ -65,6 +65,18 @@ class PixelROI:
 
     def get_masked_sum(self, image):
         return np.sum(np.multiply(image, self.get_mask(image)))
+
+    def refine_center(self, image):
+        # crop the image around the roi - a square crop also for roud rois, but does not matter
+        # the pixel values are used to weight the coordinates and find the middle value
+        margin_px = 5
+        mesh_x, mesh_y = np.meshgrid(range(len(image[0])), range(len(image)))
+        mask = np.zeros(image.shape)
+        [i_t, i_b, i_l, i_r] = self.indexes_tblr(margin_px=5)  # arbitrary margin so that the crop contains the gradient
+        mask[i_t:i_b, i_l:i_r] = image[i_t:i_b, i_l:i_r]
+        total = np.sum(mask)
+        self.set_center(np.sum(np.multiply(mesh_x, mask)) / total, np.sum(np.multiply(mesh_y, mask)) / total)
+        return self.center_x(), self.center_y()
 
     def get_distance_from_center(self, image=None, array_size_yx=None):
         if image is not None:

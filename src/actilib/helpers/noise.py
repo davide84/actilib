@@ -36,8 +36,8 @@ def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128)
     nps_2d = np.mean(np.array(nps_series), axis=0)
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     _, mesh_r = cart2pol(mesh_x, mesh_y)
-    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, bin_number=nps_2d.shape[0],
-                                                bin_range=[0, np.ceil(2 * np.abs(mesh_r[0, 0]))])
+    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, r_bins=nps_2d.shape[0],
+                                                r_range=[0, np.ceil(2 * np.abs(mesh_r[0, 0]))])
     nps_smooth = smooth(nps_1d)
     peak_freq = nps_freqs[np.argmax(nps_smooth)]
     mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))

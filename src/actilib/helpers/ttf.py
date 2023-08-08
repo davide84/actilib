@@ -51,6 +51,7 @@ def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
         pixel_size_x = pixel_size
         pixel_size_y = pixel_size
     # loop over ROIs and images
+    ret = []
     for i_roi, roi in enumerate(roi_series):
         # (!) in "numpy images" the 1st coordinate is y
         fgd_list = []
@@ -66,7 +67,7 @@ def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
             plt.plot(frq, ttf)
             plt.xlim([0, 1.2])
             plt.ylim([0, 1.1])
-            plt.show()
+            # plt.show()
             fgd_list.append(other['fgd'])
             bkg_list.append(other['bkg'])
             cnt_list.append(other['cnt'])
@@ -77,6 +78,13 @@ def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
               'CNT:', np.mean(cnt_list),
               'NOI:', np.mean(noi_list),
               'CNR:', np.mean(cnr_list))
-    return {
-
-    }
+        ret.append({
+            'esf': other['esf'],
+            'lsf': other['lsf'],
+            'ttf': ttf,
+            'frq': frq,
+            'f10': other['f10'],
+            'f50': other['f50'],
+            'contrast': other['cnt']
+        })
+    return ret

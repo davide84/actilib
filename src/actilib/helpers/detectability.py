@@ -44,7 +44,7 @@ def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
     freq_y = freq_x
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
-    ttf_resampled = np.interp(mesh_r, data_freq['ttf_f'], data_ttf['TTF'], 0, 0)  # linear by definition
+    ttf_resampled = np.interp(mesh_r, data_freq['ttf_f'], data_ttf['ttf'], 0, 0)  # linear by definition
     return ttf_resampled
 
 
@@ -55,9 +55,9 @@ def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D')
     mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
     if mode == 'radial':
         mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
-        nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['NPS'], 0, 0)  # linear by definition
+        nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['nps_1d'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
-        ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['NPS_2D'],
+        ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'],
                                         kind='linear', fill_value=0.0)
         nps_resampled = ip(freq_x, freq_y)
     # Scale the NPS as needed to maintain the noise variance from he original NPS

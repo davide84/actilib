@@ -6,6 +6,7 @@ from actilib.helpers.general import load_images_from_tar
 from actilib.helpers.rois import SquareROI, CircleROI, create_circle_of_rois
 from actilib.helpers.noise import background_properties
 from actilib.helpers.ttf import ttf_properties
+from actilib.helpers.detectability import calculate_dprime
 
 
 NPS_ROD_DIAMETER_MM = 15
@@ -34,14 +35,30 @@ def main():
     # display_image_with_rois(images[0]['window'], ttf_rois)
 
     # quick NPS test
-    # prop = background_properties(images, nps_rois, pixel_size_xy_mm)
-    # print('noise =', prop['noise'])
-    # print('fpeak =', prop['fpeak'])
-    # print('nps1d =', prop['nps_1d'])
+    nps = background_properties(images, nps_rois, pixel_size_xy_mm)
+    # print(nps)
+    # print('noise =', nps['noise'])
+    # print('fpeak =', nps['fpeak'])
+    # print('nps1d =', nps['nps_1d'])
 
     # TTF test
-    prop = ttf_properties(images, [ttf_rois[0]], pixel_size_xy_mm, True)  # True -> averaging images
-    print(prop)
+    ttf = ttf_properties(images, [ttf_rois[0]], pixel_size_xy_mm, average_images=True)
+    # print(ttf[0]['frq'])
+
+    freq = {
+        'nps_fx': nps['f2d_x'],
+        'nps_fy': nps['f2d_y'],
+        'nps_f': nps['f1d'],
+        'ttf_f': ttf[0]['frq']
+    }
+
+    #
+    # d' test
+    #
+    dprime = calculate_dprime(freq, nps, ttf[0])
+    for key in nps:
+        print(key, nps[key])
+    print('DPRIME:', dprime)
 
 
 if __name__ == '__main__':

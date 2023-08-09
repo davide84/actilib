@@ -13,7 +13,7 @@ NPS_ROI_DIAMETER_MM = 30
 NPS_ROI_DISTCENT_MM = 10 + (NPS_ROD_DIAMETER_MM + NPS_ROI_DIAMETER_MM) / 2  # distance from center
 
 
-class TestStringMethods(unittest.TestCase):
+class TestNPS(unittest.TestCase):
     def test_nps(self):
         #
         # read the images and basic properties

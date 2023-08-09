@@ -64,20 +64,15 @@ def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
             # re-estimate center (precision needed for radial profile calculation)
             roi.refine_center(image)
             frq, ttf, other = calculate_image_ttf(image, roi, pixel_size_x)
-            plt.plot(frq, ttf)
-            plt.xlim([0, 1.2])
-            plt.ylim([0, 1.1])
+            # plt.plot(frq, ttf)
+            # plt.xlim([0, 1.2])
+            # plt.ylim([0, 1.1])
             # plt.show()
             fgd_list.append(other['fgd'])
             bkg_list.append(other['bkg'])
             cnt_list.append(other['cnt'])
             cnr_list.append(other['cnr'])
             noi_list.append(other['noi'])
-        print('BKG:', np.mean(bkg_list),
-              'FGD:', np.mean(fgd_list),
-              'CNT:', np.mean(cnt_list),
-              'NOI:', np.mean(noi_list),
-              'CNR:', np.mean(cnr_list))
         ret.append({
             'esf': other['esf'],
             'lsf': other['lsf'],

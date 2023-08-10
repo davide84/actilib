@@ -7,6 +7,11 @@ import tempfile
 from datetime import datetime
 from fpdf import FPDF
 from tabulate import tabulate
+from pathlib import Path
+
+
+def get_matlab_script_path():
+    return str(Path(__file__).parent.parent / 'resources' / 'matlab')
 
 
 def trunc_dec(number, num_dec):

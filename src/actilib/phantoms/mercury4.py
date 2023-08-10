@@ -1,8 +1,8 @@
 import math
+import cv2 as cv
 import numpy as np
 
-from actilib.helpers.math import cart2pol, pol2cart, deg_from_rad
-from actilib.helpers.geometry import find_phantom_center_and_radius, find_circles
+from actilib.helpers.math import cart2pol, pol2cart, deg_from_rad, find_circles
 from actilib.helpers.display import *
 
 
@@ -16,6 +16,32 @@ def is_section_diameter(diameter_mm):
         if math.isclose(diameter_mm, d, abs_tol=3):
             return True
     return False
+
+
+def find_phantom_center_and_radius(dicom_images):
+    if not isinstance(dicom_images, list):
+        dicom_images = [dicom_images]
+    centers_x = []
+    centers_y = []
+    radii = []
+    for dicom_image in dicom_images:
+        ret, thr = cv.threshold(dicom_image['window'].astype(np.uint8), 100, 255, 0)
+        contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        max_r = 0
+        [center_x, center_y] = [0, 0]
+        for c in contours:
+            [x, y], r = cv.minEnclosingCircle(c)
+            if r > max_r:
+                max_r = r
+                [center_x, center_y] = [x, y]
+        centers_x.append(center_x)
+        centers_y.append(center_y)
+        radii.append(max_r)
+    pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
+    radius_factor_mm = ((pixel_size_xy_mm[0]**2 + pixel_size_xy_mm[1]**2) / 2)**0.5
+    ret_xy = [np.mean(centers_x), np.mean(centers_y)]
+    ret_r = np.mean(radii)
+    return ret_xy, ret_r, np.multiply(ret_xy, pixel_size_xy_mm), ret_r * radius_factor_mm
 
 
 def find_inserts(image, phantom_center_px, radius_factor_mm, expected_hu, tolerance_hu=100):

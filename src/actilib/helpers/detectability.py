@@ -5,15 +5,14 @@ from actilib.helpers.math import cart2pol, fft_frequencies
 
 
 def get_dprime_default_params():
-    # coeff is the exponent of the designer shape or blur factor of the gaussian shape (is not used for flat shapes)
     return {
-        "profile_type": 'Designer',  # task.profileType | 2D shape of the object
-        "diameter_mm": 5,            # task.diameter (lesion diameter for simulations)
-        "coeff": 1,                  # task.n
-        "contrast_hu": 15,           # task.Contrast
-        "pixel_number": 300,         # task.N
-        "pixel_size_mm": 0.05,       # task.psize
-        "fov_mm": 15                 # task.FOV
+        "profile_type": 'Designer',  # 2D shape of the object
+        "diameter_mm": 5,            # lesion diameter for simulations [mm]
+        "coeff": 1,                  # exponent of shape (Designer profile) or blur factor (Gaussian profile)
+        "contrast_hu": 15,           # contrast of the ROI [HU]
+        "pixel_number": 300,         #
+        "pixel_size_mm": 0.05,       #
+        "fov_mm": 15                 #
     }
 
 
@@ -39,31 +38,27 @@ def calculate_task_image(params):
 
 
 def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
-    """Resample a TTF array to match a task meshgrid"""
-    freq_x = fft_frequencies(pixel_number, pixel_size_mm)
-    freq_y = freq_x
-    mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
+    """Resample a TTF array to match a meshgrid"""
+    freq = fft_frequencies(pixel_number, pixel_size_mm)
+    mesh_x, mesh_y = np.meshgrid(freq, freq)
     mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
-    ttf_resampled = np.interp(mesh_r, data_freq['ttf_f'], data_ttf['ttf'], 0, 0)  # linear by definition
-    return ttf_resampled
+    return np.interp(mesh_r, data_freq['ttf_f'], data_ttf['ttf'], 0, 0)  # linear by definition
 
 
 def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D'):
-    """Resample a NPS array to match a task meshgrid"""
-    freq_x = fft_frequencies(pixel_number, pixel_size_mm)
-    freq_y = freq_x
-    mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
+    """Resample a NPS array to match a meshgrid"""
+    freq = fft_frequencies(pixel_number, pixel_size_mm)
     if mode == 'radial':
+        mesh_x, mesh_y = np.meshgrid(freq, freq)
         mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
         nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['nps_1d'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
         ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'],
                                         kind='linear', fill_value=0.0)
-        nps_resampled = ip(freq_x, freq_y)
+        nps_resampled = ip(freq, freq)
     # Scale the NPS as needed to maintain the noise variance from he original NPS
-    spacing_x = freq_x[1] - freq_x[0]
-    spacing_y = freq_y[1] - freq_y[0]  # redundant but explicit for clarity
-    scale_factor = (data_nps['noise'] ** 2) / (np.sum(nps_resampled) * spacing_x * spacing_y)
+    freq_spacing = freq[1] - freq[0]
+    scale_factor = (data_nps['noise'] ** 2) / (np.sum(nps_resampled) * (freq_spacing ** 2))
     nps_resampled = scale_factor * nps_resampled
     return nps_resampled
 
@@ -74,8 +69,8 @@ def calculate_dprime(data_freq, data_nps, data_ttf, params=get_dprime_default_pa
     weights = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)) ** 2)
     ttf_resampled = resample_2d_ttf(data_freq, data_ttf, params['pixel_size_mm'], params['pixel_number'])
     nps_resampled = resample_2d_nps(data_freq, data_nps, params['pixel_size_mm'], params['pixel_number'])
-    eye_filter = np.ones(params['pixel_number'])  # TODO implement get.EyeFilter as in imquest_Dprime.m
-    internal_noise = np.zeros(params['pixel_number'])  # TODO implement get.InternalNoise as in imquest_Dprime.m
+    eye_filter = np.ones(params['pixel_number'])  # TODO implement more eye filters other than identity matrix
+    internal_noise = np.zeros(params['pixel_number'])  # TODO implement noise calculation instead of null matrix
     freq_spacing_coeff = (1.0 / (params['pixel_size_mm'] * params['pixel_number'])) ** 2
     # finally, the d' calculation
     partial = weights * (ttf_resampled ** 2)

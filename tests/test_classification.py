@@ -1,9 +1,9 @@
 import numpy as np
 import os
 import pkg_resources
-from actilib.helpers.geometry import find_phantom_center_and_radius, find_circles
+from actilib.helpers.mercury import find_phantom_center_and_radius, find_circles
 from actilib.helpers.rois import PixelROI
-from actilib.helpers.general import load_images_from_tar
+from actilib.helpers.dataload import load_images_from_tar
 from actilib.helpers.rois import create_circle_of_rois
 
 

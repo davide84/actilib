@@ -2,7 +2,7 @@ import numpy as np
 from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth, cart2pol
 
 
-def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128):
+def calculate_roi_nps(dicom_images, roi_series, pixel_size, fft_samples=128):
     try:
         pixel_size_x = pixel_size[0]
         pixel_size_y = pixel_size[1]
@@ -42,14 +42,14 @@ def background_properties(dicom_images, roi_series, pixel_size, fft_samples=128)
     peak_freq = nps_freqs[np.argmax(nps_smooth)]
     mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))
     return {
-        "hu": np.mean(hu_series),
-        "noise": np.sqrt(np.mean(var_series)),
-        "noise_std": np.std(np.sqrt(var_series)),
-        "f1d": nps_freqs,
-        "f2d_x": freq_x,
-        "f2d_y": freq_y,
-        "fpeak": peak_freq,
-        "fmean": mean_freq,
-        "nps_1d": nps_1d,
-        "nps_2d": nps_2d
+        'huavg': np.mean(hu_series),
+        'noise': np.sqrt(np.mean(var_series)),
+        'noise_std': np.std(np.sqrt(var_series)),
+        'f1d': nps_freqs,
+        'f2d_x': freq_x,
+        'f2d_y': freq_y,
+        'fpeak': peak_freq,
+        'fmean': mean_freq,
+        'nps_1d': nps_1d,
+        'nps_2d': nps_2d
     }

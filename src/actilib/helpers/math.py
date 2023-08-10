@@ -1,4 +1,5 @@
 import math
+import cv2 as cv
 import numpy as np
 
 
@@ -16,6 +17,32 @@ def cart2pol(x, y):
 
 def pol2cart(theta, rho):
     return rho * np.cos(theta), rho * np.sin(theta)
+
+
+class ListBuffer:
+    """
+    Store lists of values and returns element-wise statistical properties.
+
+    Useful to average data series and plot them with error bars.
+    """
+
+    def __init__(self):
+        self.vectors = None
+
+    def add_value_list(self, values_list):
+        if self.vectors is None:
+            self.vectors = np.array(values_list)
+        else:
+            self.vectors = np.vstack((self.vectors, values_list))
+
+    def mean(self):
+        return np.mean(self.vectors, axis=0)
+
+    def std(self):
+        return np.std(self.vectors, axis=0)
+
+    def se(self):
+        return np.std(self.vectors, axis=0) / np.sqrt(len(self.vectors))
 
 
 def polyfit2d(x, y, z, order=2):
@@ -103,37 +130,27 @@ def radial_profile(y_data, r_data, r_bins, r_range=None):
     return bin_edges, y_values, v_values
 
 
-def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
-    # preparation: we search the two bins corresponding to 15% and 85% of the ESF curve
-    # and we calculate the extremities of the Hann window in terms of bin indexes
-    esf_min = min(esf)
-    esf_max = max(esf)
-    esf_mid = (esf_max + esf_min) / 2.0  # middle value
-    esf_15p = esf_min + 0.15 * (esf_max - esf_min)
-    esf_85p = esf_min + 0.85 * (esf_max - esf_min)
-    esf_shifted_sorted_indexes = np.argsort(np.abs(esf - esf_mid))
-    bin_mid = esf_shifted_sorted_indexes[0]  # bin of middle value
-    if np.mean(esf[:bin_mid]) > np.mean(esf[bin_mid:]):  # ESF higher at the left -> roi_hu higher than background?
-        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][1]
-        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][-1]
-    else:
-        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][-1]
-        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][1]
-    bin_win = hann_window * abs(bin_85p - bin_15p)
-    bin_hann_min = max(bin_mid - bin_win, 0)
-    bin_hann_max = min(bin_mid + bin_win, len(esf) - 2)  # additional -1 because LSF will have 1 bin less
-    # derivation -> LSF
-    lsf = np.gradient(esf)
-    # Hann smoothing (https://en.wikipedia.org/wiki/Hann_function)
-    hann = np.zeros(lsf.size)
-    hann[bin_hann_min:bin_hann_max] = np.hanning(bin_hann_max - bin_hann_min)
-    lsf = np.multiply(lsf, hann)
-    # finally calculating the TTF
-    ttf = np.abs(np.fft.fftn(lsf))
-    ttf = ttf[0:math.floor(len(ttf)/2)]  # cutting second half of array
-    ttf = ttf / ttf[0]  # normalisation
-    frq = np.linspace(0, 0.5 / bin_width, len(ttf))
-    # resampling
-    frq_resampled = np.linspace(0, 2.0, num_samples)
-    ttf_resampled = np.interp(frq_resampled, frq, ttf)
-    return frq_resampled, ttf_resampled, lsf
+def find_weighted_center(image):
+    mesh_x, mesh_y = np.meshgrid(range(len(image[0])), range(len(image)))
+    total = np.sum(image)
+    cx = np.sum(np.multiply(mesh_x, image)) / total
+    cy = np.sum(np.multiply(mesh_y, image)) / total
+    return cx, cy
+
+
+def find_circles(numpy_image, expected_radius_px, tolerance_px=1):
+    """
+    Return a list of coordinates for circles matching the desired radius
+    """
+    circles = []
+    img = numpy_image.astype(np.uint8)
+    ret, thrimg = cv.threshold(img, 127, 255, 0)
+    # from actilib.helpers.display import display_pixels
+    # display_pixels(thrimg)
+    thr = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
+    contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    for c in contours:
+        [x, y], r = cv.minEnclosingCircle(c)
+        if r - tolerance_px < expected_radius_px < r + tolerance_px:
+            circles.append([x, y, r])
+    return circles

@@ -1,19 +1,23 @@
 import json
 
 import numpy as np
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QTabWidget, QMenuBar, QDialog,
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QTabWidget, QMenuBar, QDialog, QSlider,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox, QDateEdit, QTimeEdit, QDesktopWidget,
                              QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFileDialog, QHeaderView, QCheckBox,
                              QTableView, QAbstractItemView, QStyle)
 from pathlib import Path
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from actilib.helpers.rois import CircleROI, SquareROI
 from actilib.gui.TableModel import ROITableModel
+import pydicom
+from pydicom.pixel_data_handlers.util import apply_modality_lut
+from pydicom.pixel_data_handlers import apply_windowing
 
 
+LOAD_RECURSION_LIMIT = 1  # 0 = dragged files only, 1 = files inside directory, 2 = directories inside directory...
 PATCH_ZORDER_DEFAULT = 1.0
 PATCH_ZORDER_HIGHLIGHT = 2.0
 ROI_COLOR_DEFAULT = 'r'
@@ -21,15 +25,18 @@ ROI_COLOR_HIGHLIGHT = 'g'
 
 
 class MplCanvas(FigureCanvasQTAgg):
+
+    image_loaded = pyqtSignal(int)
+
     def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.slider = None
+        self.images = []
         self.fig = plt.Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
+        self.axes.imshow(np.zeros((200, 200)))
         self.roi_patches = []
         self.roi_active = None
         super(MplCanvas, self).__init__(self.fig)
-
-    def imshow(self, np_array):
-        self.axes.imshow(np_array)
 
     @staticmethod
     def _patch_from_roi(roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
@@ -72,6 +79,42 @@ class MplCanvas(FigureCanvasQTAgg):
             pass
         self.draw()
 
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat("text/plain") and event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        images = self.recursively_validate_and_load_files(files)
+        if images:
+            self.images = images
+            self.show_image(0)
+            self.image_loaded.emit(len(images)-1)
+
+    def recursively_validate_and_load_files(self, file_list, recursion_level=0):
+        file_load = []
+        for f in file_list:
+            file_path = Path(f)
+            if file_path.is_dir() and recursion_level < LOAD_RECURSION_LIMIT:
+                file_load += self.recursively_validate_and_load_files(file_path.glob('*'), recursion_level+1)
+            elif file_path.is_file():
+                # check if can be parsed by pydicom
+                try:
+                    pydicom.dcmread(file_path, stop_before_pixels=True)
+                    file_load.append(str(file_path))
+                except pydicom.errors.InvalidDicomError:
+                    pass  # not a proper DICOM file
+        return file_load
+
+    def show_image(self, index):
+        try:
+            dicom_data = pydicom.dcmread(self.images[index])
+            pixels = apply_modality_lut(dicom_data.pixel_array, dicom_data)
+            self.axes.imshow(apply_windowing(pixels, dicom_data), cmap='gray')
+            self.draw()
+        except IndexError as e:
+            print(e)
+
 
 def roi_from_row(row):
     if row[1] == 'Square':
@@ -98,7 +141,7 @@ class RoiCreator(QMainWindow):
         self.drag_start_xy = None
         self.drag_roi_cxcy = None
 
-        self.setGeometry(50, 50, 1200, 800)
+        self.setGeometry(50, 50, 1300, 800)
         self.setWindowTitle("ROI Creator")
         #self.setWindowIcon(QIcon(resource_filename('isi.resources', 'templogo.jpg')))
         self.draw_ui()
@@ -140,6 +183,8 @@ class RoiCreator(QMainWindow):
 
     def roi_mouse_resize(self, event):
         roi_index = self.roi_current_index()
+        if roi_index is None:
+            return
         row = self.roimodel.getRowData(roi_index)
         if mouse_is_over_selected_roi(event, row):
             if event.button == 'up':
@@ -155,12 +200,21 @@ class RoiCreator(QMainWindow):
         #
         # left panel: image display
         #
-        lay_h_main.addWidget(self.canvas, 67)
-        self.canvas.imshow(np.ones((200, 200)))
+        lay_h_images = QHBoxLayout()
+        # slider
+        self.slider = QSlider(Qt.Vertical)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(0)
+        self.slider.valueChanged.connect(lambda: self.canvas.show_image(self.slider.value()))
+        lay_h_images.addWidget(self.slider)
+        # canvas
+        self.canvas.image_loaded.connect(self.update_slider)
+        lay_h_images.addWidget(self.canvas)
+        lay_h_main.addLayout(lay_h_images, 67)
         # self.canvas.mpl_connect('motion_notify_event', self.react)
         self.canvas.mpl_connect('button_press_event', self.roi_mouse_start_drag)
         self.canvas.mpl_connect('scroll_event', self.roi_mouse_resize)
-
+        self.canvas.setAcceptDrops(True)
         #
         # right panel: ROI operations
         #
@@ -185,7 +239,6 @@ class RoiCreator(QMainWindow):
         btn_roi_sav.clicked.connect(self.roi_save_list)
         lay_h_roibtns.addWidget(btn_roi_sav)
         lay_v_rois.addLayout(lay_h_roibtns)
-
         # ROI table
         self.roitable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.roitable.verticalHeader().setVisible(True)
@@ -195,11 +248,12 @@ class RoiCreator(QMainWindow):
         # self.roimodel.layoutChanged.connect(self.roi_redraw_all)  # added or removed ROI
         self.roimodel.dataChanged.connect(self.roi_update_current)  # changed ROI
         self.roitable.clicked.connect(self.roi_highlight_selected)  # selected another ROI
-
         lay_v_rois.addWidget(self.roitable)
 
+    def update_slider(self, new_max):
+        self.slider.setMaximum(new_max)
+
     def roi_redraw_all(self):
-        print('Display ROIs')
         self.canvas.clear_rois()
         for r in range(self.roimodel.rowCount(0)):
             self.canvas.add_roi(roi_from_row(self.roimodel.getRowData(r)))

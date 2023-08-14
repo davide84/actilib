@@ -1,9 +1,11 @@
+import json
+
 import numpy as np
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QTabWidget, QMenuBar, QDialog,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox, QDateEdit, QTimeEdit, QDesktopWidget,
                              QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFileDialog, QHeaderView, QCheckBox,
                              QTableView, QAbstractItemView, QStyle)
-from PyQt5.QtGui import QPixmap
+from pathlib import Path
 from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -226,7 +228,23 @@ class RoiCreator(QMainWindow):
         self.roi_highlight_selected()
 
     def roi_save_list(self):
-        pass
+        # prepare the data structure for writeout
+        roi_out = []
+        for r in range(self.roimodel.rowCount(0)):
+            row = self.roimodel.getRowData(r)
+            roi_out.append({
+                'name': row[0],
+                'shape': row[1],
+                'center_x': row[2],
+                'center_y': row[3],
+                'size': row[4]
+            })
+        # select file and write
+        fname = QFileDialog.getSaveFileName(self, 'Save file', '.', "JSON text file (*.json)")
+        if fname != ('', ''):
+            file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
+            with open(file_path, 'w', encoding='utf-8') as fout:
+                json.dump(roi_out, fout)
 
 
 if __name__ == '__main__':

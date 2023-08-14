@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex
 class ROITableModel(QAbstractTableModel):
     def __init__(self):
         super().__init__()
-        self._columns = ['Name', 'Type', 'Center X', 'Center Y', 'Size']
+        self._columns = ['Name', 'Shape', 'Center X', 'Center Y', 'Size']
         self._dummyrow = ['', '', 0, 0, 0]
         self._data = [self._dummyrow.copy()]
         self._add_counter = 0

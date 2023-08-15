@@ -30,7 +30,8 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.slider = None
-        self.images = []
+        self.image_paths = []
+        self.image_array = []
         self.fig = plt.Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         self.axes.imshow(np.zeros((200, 200)))
@@ -85,11 +86,12 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def dropEvent(self, event):
         files = [u.toLocalFile() for u in event.mimeData().urls()]
-        images = self.recursively_validate_and_load_files(files)
-        if images:
-            self.images = images
+        image_paths = self.recursively_validate_and_load_files(files)
+        if image_paths:
+            self.image_paths = image_paths
+            self.image_array = [None] * len(image_paths)
             self.show_image(0)
-            self.image_loaded.emit(len(images)-1)
+            self.image_loaded.emit(len(image_paths)-1)
 
     def recursively_validate_and_load_files(self, file_list, recursion_level=0):
         file_load = []
@@ -108,9 +110,11 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def show_image(self, index):
         try:
-            dicom_data = pydicom.dcmread(self.images[index])
-            pixels = apply_modality_lut(dicom_data.pixel_array, dicom_data)
-            self.axes.imshow(apply_windowing(pixels, dicom_data), cmap='gray')
+            if self.image_array[index] is None:
+                print('Image not cached, loading...')
+                dicom = self.image_array[index] = pydicom.dcmread(self.image_paths[index])
+                self.image_array[index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
+            self.axes.imshow(self.image_array[index], cmap='gray')
             self.draw()
         except IndexError as e:
             print(e)
@@ -122,10 +126,6 @@ def roi_from_row(row):
     elif row[1] == 'Circle':
         return CircleROI(row[4] / 2.0, row[2], row[3])
     raise ValueError
-
-
-def mouse_is_over_selected_roi(event, row):
-    return -row[4] / 2.0 < event.xdata - row[2] < + row[4] / 2.0 and -row[4] / 2.0 < event.ydata - row[3] < row[4] / 2.0
 
 
 class RoiCreator(QMainWindow):
@@ -160,6 +160,11 @@ class RoiCreator(QMainWindow):
         except IndexError:
             return None
 
+    def mouse_is_over_selected_roi(self, event):
+        row = self.roimodel.getRowData(self.roi_current_index())
+        return -row[4] / 2.0 < event.xdata - row[2] < + row[4] / 2.0 and -row[4] / 2.0 < event.ydata - row[3] < row[
+            4] / 2.0
+
     def roi_mouse_stop_drag(self, event):
         self.canvas.mpl_disconnect(self.drag_callback_id)
 
@@ -168,7 +173,7 @@ class RoiCreator(QMainWindow):
         if roi_index is None:
             return
         row = self.roimodel.getRowData(roi_index)
-        if mouse_is_over_selected_roi(event, row):
+        if self.mouse_is_over_selected_roi(event):
             self.drag_start_xy = (event.xdata, event.ydata)
             self.drag_roi_cxcy = (row[2], row[3])
             self.drag_callback_id = self.canvas.mpl_connect('motion_notify_event', self.roi_mouse_drag)
@@ -183,10 +188,13 @@ class RoiCreator(QMainWindow):
 
     def roi_mouse_resize(self, event):
         roi_index = self.roi_current_index()
-        if roi_index is None:
-            return
-        row = self.roimodel.getRowData(roi_index)
-        if mouse_is_over_selected_roi(event, row):
+        if roi_index is None or not self.mouse_is_over_selected_roi(event):
+            if event.button == 'up':
+                self.slider.setValue(min(self.slider.value() + 1, self.slider.maximum()))
+            elif event.button == 'down':
+                self.slider.setValue(max(self.slider.value() - 1, self.slider.minimum()))
+        else:
+            row = self.roimodel.getRowData(roi_index)
             if event.button == 'up':
                 self.roimodel.setData(self.roimodel.index(roi_index, 4), row[4] + 2, Qt.EditRole)
             elif event.button == 'down':
@@ -208,7 +216,7 @@ class RoiCreator(QMainWindow):
         self.slider.valueChanged.connect(lambda: self.canvas.show_image(self.slider.value()))
         lay_h_images.addWidget(self.slider)
         # canvas
-        self.canvas.image_loaded.connect(self.update_slider)
+        self.canvas.image_loaded.connect(self.update_slider_maximum)
         lay_h_images.addWidget(self.canvas)
         lay_h_main.addLayout(lay_h_images, 67)
         # self.canvas.mpl_connect('motion_notify_event', self.react)
@@ -250,7 +258,7 @@ class RoiCreator(QMainWindow):
         self.roitable.clicked.connect(self.roi_highlight_selected)  # selected another ROI
         lay_v_rois.addWidget(self.roitable)
 
-    def update_slider(self, new_max):
+    def update_slider_maximum(self, new_max):
         self.slider.setMaximum(new_max)
 
     def roi_redraw_all(self):

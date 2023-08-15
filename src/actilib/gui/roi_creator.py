@@ -1,10 +1,8 @@
 import json
 
 import numpy as np
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QTabWidget, QMenuBar, QDialog, QSlider,
-                             QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox, QDateEdit, QTimeEdit, QDesktopWidget,
-                             QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFileDialog, QHeaderView, QCheckBox,
-                             QTableView, QAbstractItemView, QStyle)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSlider, QStatusBar, QHBoxLayout, QVBoxLayout,
+                             QDesktopWidget, QPushButton, QFileDialog, QHeaderView, QTableView, QStyle)
 from pathlib import Path
 from PyQt5.QtCore import Qt, pyqtSignal
 import matplotlib.pyplot as plt
@@ -34,7 +32,7 @@ class MplCanvas(FigureCanvasQTAgg):
         self.image_array = []
         self.fig = plt.Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
-        self.axes.imshow(np.zeros((200, 200)))
+        self.image_shown = self.axes.imshow(np.zeros((256, 256)), cmap='gray')
         self.roi_patches = []
         self.roi_active = None
         super(MplCanvas, self).__init__(self.fig)
@@ -53,7 +51,6 @@ class MplCanvas(FigureCanvasQTAgg):
     def add_roi(self, roi, color=ROI_COLOR_DEFAULT):
         self.roi_patches.append(self._patch_from_roi(roi, color))
         self.axes.add_patch(self.roi_patches[-1])
-        self.draw()
 
     def replace_roi(self, index, roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
         patch = self._patch_from_roi(roi, color, zorder)
@@ -64,7 +61,6 @@ class MplCanvas(FigureCanvasQTAgg):
         self.axes.patches.clear()
         for patch in self.roi_patches:
             self.axes.add_patch(patch)
-        self.draw()
 
     def clear_rois(self):
         self.roi_patches = []
@@ -111,13 +107,18 @@ class MplCanvas(FigureCanvasQTAgg):
     def show_image(self, index):
         try:
             if self.image_array[index] is None:
-                print('Image not cached, loading...')
                 dicom = self.image_array[index] = pydicom.dcmread(self.image_paths[index])
                 self.image_array[index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
-            self.axes.imshow(self.image_array[index], cmap='gray')
+            if self.image_shown.get_array().shape == self.image_array[index].shape:
+                self.image_shown.set_data(self.image_array[index])
+                self.image_shown.autoscale()
+            else:
+                self.image_shown = self.axes.imshow(self.image_array[index], cmap='gray')
             self.draw()
+            return index
         except IndexError as e:
             print(e)
+        return None
 
 
 def roi_from_row(row):
@@ -131,6 +132,9 @@ def roi_from_row(row):
 class RoiCreator(QMainWindow):
     def __init__(self):
         super(RoiCreator, self).__init__()
+
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
 
         self.canvas = MplCanvas()
         self.roimodel = ROITableModel()
@@ -213,7 +217,7 @@ class RoiCreator(QMainWindow):
         self.slider = QSlider(Qt.Vertical)
         self.slider.setMinimum(0)
         self.slider.setMaximum(0)
-        self.slider.valueChanged.connect(lambda: self.canvas.show_image(self.slider.value()))
+        self.slider.valueChanged.connect(self.select_image)
         lay_h_images.addWidget(self.slider)
         # canvas
         self.canvas.image_loaded.connect(self.update_slider_maximum)
@@ -258,8 +262,18 @@ class RoiCreator(QMainWindow):
         self.roitable.clicked.connect(self.roi_highlight_selected)  # selected another ROI
         lay_v_rois.addWidget(self.roitable)
 
+    def display_new_image_index(self):
+        self.statusBar.showMessage('Slice {} of {} - {}'.format(self.slider.value() + 1, self.slider.maximum() + 1,
+                                   self.canvas.image_paths[self.slider.value()]))
+
     def update_slider_maximum(self, new_max):
         self.slider.setMaximum(new_max)
+        self.display_new_image_index()
+
+    def select_image(self):
+        image_index = self.canvas.show_image(self.slider.value())
+        if image_index is not None:
+            self.display_new_image_index()
 
     def roi_redraw_all(self):
         self.canvas.clear_rois()

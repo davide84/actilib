@@ -1,124 +1,13 @@
 import json
 
-import numpy as np
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSlider, QStatusBar, QHBoxLayout, QVBoxLayout,
-                             QDesktopWidget, QPushButton, QFileDialog, QHeaderView, QTableView, QStyle)
+                             QDesktopWidget, QPushButton, QFileDialog, QHeaderView, QTableView, QStyle, QGroupBox,
+                             QLabel, QSpinBox)
 from pathlib import Path
-from PyQt5.QtCore import Qt, pyqtSignal
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from PyQt5.QtCore import Qt
 from actilib.helpers.rois import CircleROI, SquareROI
 from actilib.gui.TableModel import ROITableModel
-import pydicom
-from pydicom.pixel_data_handlers.util import apply_modality_lut
-from pydicom.pixel_data_handlers import apply_windowing
-
-
-LOAD_RECURSION_LIMIT = 1  # 0 = dragged files only, 1 = files inside directory, 2 = directories inside directory...
-PATCH_ZORDER_DEFAULT = 1.0
-PATCH_ZORDER_HIGHLIGHT = 2.0
-ROI_COLOR_DEFAULT = 'r'
-ROI_COLOR_HIGHLIGHT = 'g'
-
-
-class MplCanvas(FigureCanvasQTAgg):
-
-    image_loaded = pyqtSignal(int)
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.slider = None
-        self.image_paths = []
-        self.image_array = []
-        self.fig = plt.Figure(figsize=(width, height), dpi=dpi)
-        self.axes = self.fig.add_subplot(111)
-        self.image_shown = self.axes.imshow(np.zeros((256, 256)), cmap='gray')
-        self.roi_patches = []
-        self.roi_active = None
-        super(MplCanvas, self).__init__(self.fig)
-
-    @staticmethod
-    def _patch_from_roi(roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
-        if roi.shape() == 'square':
-            return patches.Rectangle((roi.edge_l(), roi.edge_t()), roi.side(), roi.side(),
-                                     linewidth=1, edgecolor=color, fill=False, zorder=zorder)
-        elif roi.shape() == 'circle':
-            return patches.Circle((roi.center_x(), roi.center_y()), roi.radius(),
-                                  linewidth=1, edgecolor=color, fill=False, zorder=zorder)
-        else:
-            raise NotImplemented(roi.shape())
-
-    def add_roi(self, roi, color=ROI_COLOR_DEFAULT):
-        self.roi_patches.append(self._patch_from_roi(roi, color))
-        self.axes.add_patch(self.roi_patches[-1])
-
-    def replace_roi(self, index, roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
-        patch = self._patch_from_roi(roi, color, zorder)
-        self.roi_patches[index] = patch
-        self.redraw_rois()
-
-    def redraw_rois(self):
-        self.axes.patches.clear()
-        for patch in self.roi_patches:
-            self.axes.add_patch(patch)
-
-    def clear_rois(self):
-        self.roi_patches = []
-        self.redraw_rois()
-
-    def highlight_roi(self, index):
-        try:
-            self.roi_patches[index].set(color=ROI_COLOR_HIGHLIGHT, zorder=PATCH_ZORDER_HIGHLIGHT)
-            if self.roi_active is not None and self.roi_active != index:
-                self.roi_patches[self.roi_active].set(color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT)
-            self.roi_active = index
-        except IndexError:
-            pass
-        self.draw()
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat("text/plain") and event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        files = [u.toLocalFile() for u in event.mimeData().urls()]
-        image_paths = self.recursively_validate_and_load_files(files)
-        if image_paths:
-            self.image_paths = image_paths
-            self.image_array = [None] * len(image_paths)
-            self.show_image(0)
-            self.image_loaded.emit(len(image_paths)-1)
-
-    def recursively_validate_and_load_files(self, file_list, recursion_level=0):
-        file_load = []
-        for f in file_list:
-            file_path = Path(f)
-            if file_path.is_dir() and recursion_level < LOAD_RECURSION_LIMIT:
-                file_load += self.recursively_validate_and_load_files(file_path.glob('*'), recursion_level+1)
-            elif file_path.is_file():
-                # check if can be parsed by pydicom
-                try:
-                    pydicom.dcmread(file_path, stop_before_pixels=True)
-                    file_load.append(str(file_path))
-                except pydicom.errors.InvalidDicomError:
-                    pass  # not a proper DICOM file
-        return file_load
-
-    def show_image(self, index):
-        try:
-            if self.image_array[index] is None:
-                dicom = self.image_array[index] = pydicom.dcmread(self.image_paths[index])
-                self.image_array[index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
-            if self.image_shown.get_array().shape == self.image_array[index].shape:
-                self.image_shown.set_data(self.image_array[index])
-                self.image_shown.autoscale()
-            else:
-                self.image_shown = self.axes.imshow(self.image_array[index], cmap='gray')
-            self.draw()
-            return index
-        except IndexError as e:
-            print(e)
-        return None
+from actilib.gui.MplCanvas import MplCanvas
 
 
 def roi_from_row(row):
@@ -140,6 +29,11 @@ class RoiCreator(QMainWindow):
         self.roimodel = ROITableModel()
         self.roitable = QTableView()
         self.roitable.setModel(self.roimodel)
+
+        self.spb_slice_first = QSpinBox()
+        self.spb_slice_last = QSpinBox()
+        self.spb_slice_first.setMaximum(0)
+        self.spb_slice_last.setMaximum(0)
 
         self.drag_callback_id = None
         self.drag_start_xy = None
@@ -220,7 +114,7 @@ class RoiCreator(QMainWindow):
         self.slider.valueChanged.connect(self.select_image)
         lay_h_images.addWidget(self.slider)
         # canvas
-        self.canvas.image_loaded.connect(self.update_slider_maximum)
+        self.canvas.image_loaded.connect(self.update_number_of_images)
         lay_h_images.addWidget(self.canvas)
         lay_h_main.addLayout(lay_h_images, 67)
         # self.canvas.mpl_connect('motion_notify_event', self.react)
@@ -246,7 +140,7 @@ class RoiCreator(QMainWindow):
         btn_roi_del.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TrashIcon')))
         btn_roi_del.clicked.connect(self.roi_remove_selected)
         lay_h_roibtns.addWidget(btn_roi_del)
-        btn_roi_sav = QPushButton(' Save ROIs...')
+        btn_roi_sav = QPushButton(' Save...')
         btn_roi_sav.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogSaveButton')))
         btn_roi_sav.clicked.connect(self.roi_save_list)
         lay_h_roibtns.addWidget(btn_roi_sav)
@@ -255,20 +149,48 @@ class RoiCreator(QMainWindow):
         self.roitable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.roitable.verticalHeader().setVisible(True)
         self.roitable.verticalHeader().setFixedWidth(20)
-        # self.roitable.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        # self.roitable.clicked.connect(lambda: print(self.roitable.selectedIndexes()[0].row()))
-        # self.roimodel.layoutChanged.connect(self.roi_redraw_all)  # added or removed ROI
         self.roimodel.dataChanged.connect(self.roi_update_current)  # changed ROI
         self.roitable.clicked.connect(self.roi_highlight_selected)  # selected another ROI
         lay_v_rois.addWidget(self.roitable)
+        # Slice filter
+        gbx_image_filter = QGroupBox('Image range selection')
+        lay_h_imgfil = QHBoxLayout()
+        lay_h_imgfil.addWidget(QLabel('First slice:'))
+        lay_h_imgfil.addWidget(self.spb_slice_first)
+        lay_h_imgfil.addWidget(QLabel('Last slice:'))
+        lay_h_imgfil.addWidget(self.spb_slice_last)
+        self.spb_slice_first.valueChanged.connect(self.update_image_range_lower)
+        self.spb_slice_last.valueChanged.connect(self.update_image_range_upper)
+        gbx_image_filter.setLayout(lay_h_imgfil)
+        lay_v_rois.addWidget(gbx_image_filter)
+
+    def update_image_range_upper(self, image_index):
+        if image_index < self.spb_slice_first.value():
+            image_index = self.spb_slice_first.value()
+            self.spb_slice_last.setValue(image_index)
+        self.slider.setMaximum(image_index-1)
+        self.display_new_image_index()
+
+    def update_image_range_lower(self, image_index):
+        if image_index > self.spb_slice_last.value():
+            image_index = self.spb_slice_last.value()
+            self.spb_slice_first.setValue(image_index)
+        self.slider.setMinimum(image_index-1)
+        self.display_new_image_index()
 
     def display_new_image_index(self):
-        self.statusBar.showMessage('Slice {} of {} - {}'.format(self.slider.value() + 1, self.slider.maximum() + 1,
+        self.statusBar.showMessage('Slice {} of {} - {}'.format(self.slider.value() + 1, len(self.canvas.image_paths),
                                    self.canvas.image_paths[self.slider.value()]))
 
-    def update_slider_maximum(self, new_max):
-        self.slider.setMaximum(new_max)
+    def update_number_of_images(self, img_num):
+        self.slider.setMaximum(img_num)
         self.display_new_image_index()
+        self.spb_slice_first.setMinimum(1)
+        self.spb_slice_last.setMinimum(1)
+        self.spb_slice_first.setMaximum(img_num + 1)
+        self.spb_slice_last.setMaximum(img_num + 1)
+        self.spb_slice_first.setValue(1)
+        self.spb_slice_last.setValue(img_num + 1)
 
     def select_image(self):
         image_index = self.canvas.show_image(self.slider.value())
@@ -315,12 +237,13 @@ class RoiCreator(QMainWindow):
                 'center_y': row[3],
                 'size': row[4]
             })
+        imgs_out = self.canvas.image_paths[self.spb_slice_first.value()-1:self.spb_slice_last.value()]
         # select file and write
         fname = QFileDialog.getSaveFileName(self, 'Save file', '.', "JSON text file (*.json)")
         if fname != ('', ''):
             file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
             with open(file_path, 'w', encoding='utf-8') as fout:
-                json.dump(roi_out, fout)
+                json.dump({'files': imgs_out, 'rois': roi_out}, fout, indent=4)
 
 
 if __name__ == '__main__':

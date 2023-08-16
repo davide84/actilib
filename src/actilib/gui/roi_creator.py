@@ -128,6 +128,10 @@ class RoiCreator(QMainWindow):
         lay_h_main.addLayout(lay_v_rois, 33)
         # ROI buttons
         lay_h_roibtns = QHBoxLayout()
+        btn_roi_loa = QPushButton(' Load...')
+        btn_roi_loa.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogOpenButton')))
+        btn_roi_loa.clicked.connect(self.roi_load_list)
+        lay_h_roibtns.addWidget(btn_roi_loa)
         btn_roi_add = QPushButton(' Add Square ROI')
         btn_roi_add.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileIcon')))
         btn_roi_add.clicked.connect(lambda: self.roi_add('Square'))
@@ -155,45 +159,46 @@ class RoiCreator(QMainWindow):
         # Slice filter
         gbx_image_filter = QGroupBox('Image range selection')
         lay_h_imgfil = QHBoxLayout()
-        lay_h_imgfil.addWidget(QLabel('First slice:'))
+        lay_h_imgfil.addWidget(QLabel('First slice:'), alignment=Qt.AlignRight)
         lay_h_imgfil.addWidget(self.spb_slice_first)
-        lay_h_imgfil.addWidget(QLabel('Last slice:'))
+        lay_h_imgfil.addWidget(QLabel('Last slice:'), alignment=Qt.AlignRight)
         lay_h_imgfil.addWidget(self.spb_slice_last)
         self.spb_slice_first.valueChanged.connect(self.update_image_range_lower)
         self.spb_slice_last.valueChanged.connect(self.update_image_range_upper)
         gbx_image_filter.setLayout(lay_h_imgfil)
         lay_v_rois.addWidget(gbx_image_filter)
 
-    def update_image_range_upper(self, image_index):
-        if image_index < self.spb_slice_first.value():
-            image_index = self.spb_slice_first.value()
-            self.spb_slice_last.setValue(image_index)
-        self.slider.setMaximum(image_index-1)
+    def update_image_range_lower(self, new_limit):
+        if new_limit > self.spb_slice_last.value():
+            new_limit = self.spb_slice_last.value()
+            self.spb_slice_first.setValue(new_limit)
+        self.slider.setMinimum(new_limit)
         self.display_new_image_index()
 
-    def update_image_range_lower(self, image_index):
-        if image_index > self.spb_slice_last.value():
-            image_index = self.spb_slice_last.value()
-            self.spb_slice_first.setValue(image_index)
-        self.slider.setMinimum(image_index-1)
+    def update_image_range_upper(self, new_limit):
+        if new_limit < self.spb_slice_first.value():
+            new_limit = self.spb_slice_first.value()
+            self.spb_slice_last.setValue(new_limit)
+        self.slider.setMaximum(new_limit)
         self.display_new_image_index()
 
     def display_new_image_index(self):
-        self.statusBar.showMessage('Slice {} of {} - {}'.format(self.slider.value() + 1, len(self.canvas.image_paths),
-                                   self.canvas.image_paths[self.slider.value()]))
+        self.statusBar.showMessage('Slice {} of {} - {}'.format(self.slider.value(), len(self.canvas.image_paths),
+                                   self.canvas.image_paths[self.slider.value()-1]))
 
     def update_number_of_images(self, img_num):
-        self.slider.setMaximum(img_num)
-        self.display_new_image_index()
+        # order of operations matter here: first set the maximum, then set the minimum
+        # otherwise we may have for a moment min = 1 > max = 0 and the slider won't update its minimum properly
+        self.spb_slice_first.setMaximum(img_num)
+        self.spb_slice_last.setMaximum(img_num)
+        self.spb_slice_last.setValue(img_num)
         self.spb_slice_first.setMinimum(1)
         self.spb_slice_last.setMinimum(1)
-        self.spb_slice_first.setMaximum(img_num + 1)
-        self.spb_slice_last.setMaximum(img_num + 1)
         self.spb_slice_first.setValue(1)
-        self.spb_slice_last.setValue(img_num + 1)
+        self.display_new_image_index()
 
     def select_image(self):
-        image_index = self.canvas.show_image(self.slider.value())
+        image_index = self.canvas.show_image(array_index=self.slider.value()-1)
         if image_index is not None:
             self.display_new_image_index()
 
@@ -205,8 +210,8 @@ class RoiCreator(QMainWindow):
 
     def roi_remove_selected(self):
         try:
-            self.roimodel.removeRow(self.roi_current_index())
-            self.roi_redraw_all()
+            if self.roimodel.removeRow(self.roi_current_index()):
+                self.roi_redraw_all()
         except IndexError:
             pass
 
@@ -217,7 +222,8 @@ class RoiCreator(QMainWindow):
         self.roi_highlight_selected()
 
     def roi_highlight_selected(self):
-        self.canvas.highlight_roi(self.roi_current_index())
+        if self.roi_current_index() is not None:
+            self.canvas.highlight_roi(self.roi_current_index())
 
     def roi_add(self, shape):
         self.roimodel.addRow(shape)
@@ -225,25 +231,50 @@ class RoiCreator(QMainWindow):
         self.canvas.add_roi(roi_from_row(self.roimodel.getRowData(self.roimodel.rowCount(0) - 1)))
         self.roi_highlight_selected()
 
+    def roi_load_list(self):
+        # select file and write
+        fname = QFileDialog.getOpenFileName(self, 'Open file', '.', "JSON text file (*.json)")
+        if fname != ('', ''):
+            file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
+            with open(file_path, 'r', encoding='utf-8') as fin:
+                data = json.load(fin)
+            # loading images first
+            self.canvas.recursively_validate_and_load_files(data['images']['files'])
+            self.spb_slice_last.setValue(data['images']['last'])
+            self.spb_slice_first.setValue(data['images']['first'])
+            self.slider.setValue(self.spb_slice_first.value())
+            # loading ROIs
+            self.roimodel.clear()
+            header = self.roimodel.getColumns()
+            for roi in data['rois']:
+                self.roimodel.addRow(roi[header[1]], roi[header[2]], roi[header[3]], roi[header[4]], roi[header[0]])
+            self.roitable.selectRow(0)
+            self.roi_redraw_all()
+
     def roi_save_list(self):
         # prepare the data structure for writeout
         roi_out = []
         for r in range(self.roimodel.rowCount(0)):
             row = self.roimodel.getRowData(r)
+            columns = self.roimodel.getColumns()
             roi_out.append({
-                'name': row[0],
-                'shape': row[1],
-                'center_x': row[2],
-                'center_y': row[3],
-                'size': row[4]
+                columns[0]: row[0],
+                columns[1]: row[1],
+                columns[2]: row[2],
+                columns[3]: row[3],
+                columns[4]: row[4]
             })
-        imgs_out = self.canvas.image_paths[self.spb_slice_first.value()-1:self.spb_slice_last.value()]
+        imgs_out = {
+            'files': self.canvas.image_paths,
+            'first': self.spb_slice_first.value(),
+            'last': self.spb_slice_last.value()
+        }
         # select file and write
         fname = QFileDialog.getSaveFileName(self, 'Save file', '.', "JSON text file (*.json)")
         if fname != ('', ''):
             file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
             with open(file_path, 'w', encoding='utf-8') as fout:
-                json.dump({'files': imgs_out, 'rois': roi_out}, fout, indent=4)
+                json.dump({'images': imgs_out, 'rois': roi_out}, fout, indent=4)
 
 
 if __name__ == '__main__':

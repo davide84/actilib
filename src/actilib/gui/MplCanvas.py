@@ -76,40 +76,39 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def dropEvent(self, event):
         files = [u.toLocalFile() for u in event.mimeData().urls()]
-        image_paths = self.recursively_validate_and_load_files(files)
-        if image_paths:
-            self.image_paths = image_paths
-            self.image_array = [None] * len(image_paths)
-            self.show_image(0)
-            self.image_loaded.emit(len(image_paths)-1)
+        self.recursively_validate_and_load_files(files)
 
     def recursively_validate_and_load_files(self, file_list, recursion_level=0):
-        file_load = []
-        for f in file_list:
+        validated_paths = []
+        for f in sorted(file_list):
             file_path = Path(f)
             if file_path.is_dir() and recursion_level < LOAD_RECURSION_LIMIT:
-                file_load += self.recursively_validate_and_load_files(file_path.glob('*'), recursion_level+1)
+                validated_paths += self.recursively_validate_and_load_files(file_path.glob('*'), recursion_level+1)
             elif file_path.is_file():
                 # check if can be parsed by pydicom
                 try:
                     pydicom.dcmread(file_path, stop_before_pixels=True)
-                    file_load.append(str(file_path))
+                    validated_paths.append(str(file_path))
                 except pydicom.errors.InvalidDicomError:
                     pass  # not a proper DICOM file
-        return file_load
+        if validated_paths:
+            self.image_paths = validated_paths
+            self.image_array = [None] * len(validated_paths)
+            self.image_loaded.emit(len(validated_paths))
+        return validated_paths
 
-    def show_image(self, index):
+    def show_image(self, array_index):
         try:
-            if self.image_array[index] is None:
-                dicom = self.image_array[index] = pydicom.dcmread(self.image_paths[index])
-                self.image_array[index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
-            if self.image_shown.get_array().shape == self.image_array[index].shape:
-                self.image_shown.set_data(self.image_array[index])
+            if self.image_array[array_index] is None:
+                dicom = self.image_array[array_index] = pydicom.dcmread(self.image_paths[array_index])
+                self.image_array[array_index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
+            if self.image_shown.get_array().shape == self.image_array[array_index].shape:
+                self.image_shown.set_data(self.image_array[array_index])
                 self.image_shown.autoscale()
             else:
-                self.image_shown = self.axes.imshow(self.image_array[index], cmap='gray')
+                self.image_shown = self.axes.imshow(self.image_array[array_index], cmap='gray')
             self.draw()
-            return index
+            return array_index
         except IndexError as e:
             print(e)
         return None

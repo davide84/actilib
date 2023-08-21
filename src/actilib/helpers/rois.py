@@ -9,10 +9,14 @@ class PixelROI:
     """
     Represent a generic ROI. Values represent pixels, this affects rounding.
     """
-    def __init__(self, size, center_x, center_y):
+    def __init__(self, size, center_x, center_y, name=None):
         self._size = size
         self._center_x = center_x
         self._center_y = center_y
+        self._name = name if name is not None else 'ROI-{}'.format(id(self))
+
+    def name(self):
+        return self._name
 
     def shape(self):
         raise NotImplemented
@@ -94,10 +98,11 @@ class PixelROI:
 
 
 class SquareROI(PixelROI):
-    def __init__(self, side, center_x=None, center_y=None):
+    def __init__(self, side, center_x=None, center_y=None, name=None):
         super().__init__(side,
                          center_x if center_x is not None else side / 2.0,
-                         center_y if center_y is not None else side / 2.0)
+                         center_y if center_y is not None else side / 2.0,
+                         name)
 
     def side(self):
         return int(self._size + 0.5)
@@ -124,10 +129,11 @@ class SquareROI(PixelROI):
 
 
 class CircleROI(PixelROI):
-    def __init__(self, radius, center_x=None, center_y=None):
+    def __init__(self, radius, center_x=None, center_y=None, name=None):
         super().__init__(2 * radius,
                          center_x if center_x is not None else radius,
-                         center_y if center_y is not None else radius)
+                         center_y if center_y is not None else radius,
+                         name)
 
     def radius(self):
         return int(self._size / 2.0 + 0.5)

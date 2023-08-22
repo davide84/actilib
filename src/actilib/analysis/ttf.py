@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from actilib.helpers.math import radial_profile, find_x_of_threshold
-from actilib.helpers.rois import get_masked_image
+from actilib.analysis.rois import get_masked_image
 
 
 def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):

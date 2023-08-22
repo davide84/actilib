@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSlider, QStatu
                              QLabel, QSpinBox)
 from pathlib import Path
 from PyQt5.QtCore import Qt
-from actilib.helpers.rois import CircleROI, SquareROI
+from actilib.analysis.rois import CircleROI, SquareROI
 from actilib.gui.TableModel import ROITableModel
 from actilib.gui.MplCanvas import MplCanvas
 

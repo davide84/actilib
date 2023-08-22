@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from actilib.helpers.rois import SquareROI, CircleROI, get_surrounding_sum, get_surrounding_average
+from actilib.analysis.rois import SquareROI, CircleROI, get_surrounding_sum, get_surrounding_average
 
 IMG_SIZE = 8
 ROI_RADI = IMG_SIZE / 2.0

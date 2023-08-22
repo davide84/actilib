@@ -1,11 +1,7 @@
 import numpy as np
 import os
 import pkg_resources
-from actilib.helpers.mercury import find_phantom_center_and_radius, find_circles
-from actilib.helpers.rois import PixelROI
 from actilib.helpers.dataload import load_images_from_tar
-from actilib.helpers.rois import create_circle_of_rois
-
 
 NPS_ROD_DIAMETER_MM = 15
 NPS_ROI_DIAMETER_MM = 30

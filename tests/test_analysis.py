@@ -3,9 +3,9 @@ import os
 import pkg_resources
 import unittest
 from actilib.helpers.dataload import load_images_from_tar
-from actilib.helpers.rois import SquareROI, CircleROI
-from actilib.helpers.nps import calculate_roi_nps
-from actilib.helpers.ttf import ttf_properties
+from actilib.analysis.rois import SquareROI, CircleROI
+from actilib.analysis.nps import calculate_roi_nps
+from actilib.analysis.ttf import ttf_properties
 from actilib.helpers.detectability import get_dprime_default_params, calculate_dprime
 
 

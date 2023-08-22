@@ -110,7 +110,7 @@ def section_has_inserts(image, center_xy=None):
     ins_coords['polystyrene'] = calculate_intermediate_insert(ins_b_na[0], ins_b_na[1], center_xy)
     ins_coords['water'] = calculate_intermediate_insert(ins_bone[0], ins_air[0], center_xy)
     # are the two low contrast inserts visible?
-    from actilib.helpers.rois import PixelROI
+    from actilib.analysis.rois import PixelROI
     # reference ROI for background
     ref_ins = np.average([ins_coords['air'], ins_coords['water']], axis=0)
     ref_roi = PixelROI(ref_ins[0], ref_ins[1], ref_ins[2], shape='circular')

@@ -2,26 +2,27 @@ import numpy as np
 from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth, cart2pol
 
 
-def calculate_roi_nps(dicom_images, roi_series, pixel_size, fft_samples=128):
-    try:
-        pixel_size_x = pixel_size[0]
-        pixel_size_y = pixel_size[1]
-    except TypeError:
-        pixel_size_x = pixel_size
-        pixel_size_y = pixel_size
+def calculate_roi_nps(dicom_images, rois, fft_samples=128):
+    if not isinstance(dicom_images, list):
+        dicom_images = [dicom_images]
+    if not isinstance(rois, list):
+        rois = [rois]
+    pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
+    pixel_size_x_mm = pixel_size_xy_mm[0]
+    pixel_size_y_mm = pixel_size_xy_mm[1]
     # prepare variables
     fft_size = [fft_samples, fft_samples]
-    freq_x = fft_frequencies(fft_samples, pixel_size_x)
-    freq_y = fft_frequencies(fft_samples, pixel_size_y)
-    dfreq_x = 1 / (pixel_size_x * fft_samples)
-    dfreq_y = 1 / (pixel_size_y * fft_samples)
+    freq_x = fft_frequencies(fft_samples, pixel_size_x_mm)
+    freq_y = fft_frequencies(fft_samples, pixel_size_y_mm)
+    dfreq_x = 1 / (pixel_size_x_mm * fft_samples)
+    dfreq_y = 1 / (pixel_size_y_mm * fft_samples)
     hu_series = []
     nps_series = []
     var_series = []
     # loop over ROIs and images
-    for i_roi, roi in enumerate(roi_series):
+    for i_roi, roi in enumerate(rois):
         [y1, y2, x1, x2] = roi.indexes_tblr()
-        norm = np.prod(pixel_size) / (roi.size() ** 2)
+        norm = np.prod(pixel_size_xy_mm) / (roi.size() ** 2)
         for i_image, dicom_image in enumerate(dicom_images):
             roi_pixels = dicom_image['pixels'][y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
             # do stuff with the ROI pixels

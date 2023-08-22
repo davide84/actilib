@@ -40,7 +40,7 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     return frq_resampled, ttf_resampled, lsf
 
 
-def calculate_roi_ttf(pixels, roi, pixel_size):
+def calculate_roi_ttf(pixels, roi, pixel_size_mm):
     # prepare masks and masked images
     mask_fgd = roi.get_annular_mask(pixels, margin_outer=-roi.radius() * 0.1, margin_inner=-roi.radius())
     mask_bkg = roi.get_annular_mask(pixels, margin_outer=roi.radius(), margin_inner=roi.radius() * 0.8)
@@ -56,11 +56,11 @@ def calculate_roi_ttf(pixels, roi, pixel_size):
     [i_t, i_b, i_l, i_r] = roi.indexes_tblr(margin_px=crop_margin)
     img_crop = pixels[i_t:i_b, i_l:i_r] - bkg
     img_radi = roi.get_distance_from_center(pixels)  # needs accurate roi center
-    img_radi = img_radi[i_t:i_b, i_l:i_r] * pixel_size  # radii must be in mm or the frequencies will be wrong!
+    img_radi = img_radi[i_t:i_b, i_l:i_r] * pixel_size_mm  # radii must be in mm or the frequencies will be wrong!
     # calculate radial profile
     bin_scale = 10  # arbitrary - the higher, the more detailed the ESF estimation
-    bin_width = pixel_size / bin_scale
-    bin_edges = np.arange(0, 2 * pixel_size * roi.radius(), bin_width)
+    bin_width = pixel_size_mm / bin_scale
+    bin_edges = np.arange(0, 2 * pixel_size_mm * roi.radius(), bin_width)
     distance, esf, variance = radial_profile(img_crop, img_radi, r_bins=bin_edges)
     # TODO: checks and cleanup of ESF (see papers)
     # calculate TTF from ESF
@@ -71,20 +71,17 @@ def calculate_roi_ttf(pixels, roi, pixel_size):
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
-def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
+def ttf_properties(dicom_images, roi_series, average_images=False):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
+    pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
+    pixel_size_x_mm = pixel_size_xy_mm[0]
+    pixel_size_y_mm = pixel_size_xy_mm[1]
     images = []
     for image in dicom_images:
         images.append(image['pixels'])
     if average_images:
         images = [np.mean(images, axis=0)]
-    try:
-        pixel_size_x = pixel_size[0]
-        pixel_size_y = pixel_size[1]
-    except TypeError:
-        pixel_size_x = pixel_size
-        pixel_size_y = pixel_size
     # loop over ROIs and images
     ret = []
     for i_roi, roi in enumerate(roi_series):
@@ -97,7 +94,7 @@ def ttf_properties(dicom_images, roi_series, pixel_size, average_images=False):
         for i_image, image in enumerate(images):
             # re-estimate center (precision needed for radial profile calculation)
             roi.refine_center(image)
-            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_x)
+            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_x_mm)
             fgd_list.append(other['fgd'])
             bkg_list.append(other['bkg'])
             cnt_list.append(other['cnt'])

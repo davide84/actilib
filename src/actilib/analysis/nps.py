@@ -42,15 +42,15 @@ def calculate_roi_nps(dicom_images, rois, fft_samples=128):
     nps_smooth = smooth(nps_1d)
     peak_freq = nps_freqs[np.argmax(nps_smooth)]
     mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))
-    return {
+    return {  # returning lists instead of ndarrays to remove numpy deps for outside code (e.g. JSON serialization)
         'huavg': np.mean(hu_series),
         'noise': np.sqrt(np.mean(var_series)),
         'noise_std': np.std(np.sqrt(var_series)),
-        'f1d': nps_freqs,
+        'f1d': nps_freqs.tolist(),
         'f2d_x': freq_x,
         'f2d_y': freq_y,
         'fpeak': peak_freq,
         'fmean': mean_freq,
-        'nps_1d': nps_1d,
-        'nps_2d': nps_2d
+        'nps_1d': nps_1d.tolist(),
+        'nps_2d': nps_2d.tolist()
     }

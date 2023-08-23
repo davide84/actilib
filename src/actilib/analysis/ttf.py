@@ -101,10 +101,10 @@ def ttf_properties(dicom_images, roi_series, average_images=False):
             cnr_list.append(other['cnr'])
             noi_list.append(other['noi'])
         ret.append({
-            'esf': other['esf'],
-            'lsf': other['lsf'],
-            'ttf': ttf,
-            'frq': frq,
+            'esf': other['esf'].tolist(),
+            'lsf': other['lsf'].tolist(),
+            'ttf': ttf.tolist(),
+            'frq': frq.tolist(),
             'f10': other['f10'],
             'f50': other['f50'],
             'contrast': other['cnt']

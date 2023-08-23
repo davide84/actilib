@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pkg_resources
 import unittest
-from actilib.helpers.dataload import load_images_from_tar
+from actilib.helpers.io import load_images_from_tar
 from actilib.phantoms.mercury4 import find_phantom_center_and_radius
 from actilib.analysis.nps import calculate_roi_nps
 from actilib.analysis.rois import create_circle_of_rois

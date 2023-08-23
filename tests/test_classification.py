@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import pkg_resources
-from actilib.helpers.dataload import load_images_from_tar
+from actilib.helpers.io import load_images_from_tar
 
 NPS_ROD_DIAMETER_MM = 15
 NPS_ROI_DIAMETER_MM = 30

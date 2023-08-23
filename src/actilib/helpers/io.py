@@ -7,6 +7,30 @@ from pydicom.pixel_data_handlers import apply_rescale
 from pydicom.pixel_data_handlers.util import apply_windowing
 
 
+JSON_FLOAT_ROUNDING_FORMAT = '.2f'
+
+
+class RoundingFloat(float):
+    __repr__ = staticmethod(lambda x: format(x, JSON_FLOAT_ROUNDING_FORMAT))
+
+
+def set_json_dump_float_precision(decimals):
+    global JSON_FLOAT_ROUNDING_FORMAT
+    if decimals in range(16):
+        JSON_FLOAT_ROUNDING_FORMAT = '.{}f'.format(decimals)
+        json.encoder.c_make_encoder = None
+        if hasattr(json.encoder, 'FLOAT_REPR'):
+            # Python 2
+            json.encoder.FLOAT_REPR = RoundingFloat.__repr__
+        else:
+            # Python 3
+            json.encoder.float = RoundingFloat
+
+
+def reset_json_dump_float_precision():
+    json.encoder.c_make_encoder = True
+
+
 def load_test_data():
     return json.loads(pkgutil.get_data('actilib', str(Path('resources') / 'test_data.json')).decode("utf-8"))
 

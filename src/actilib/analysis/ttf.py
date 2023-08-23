@@ -71,9 +71,11 @@ def calculate_roi_ttf(pixels, roi, pixel_size_mm):
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
-def ttf_properties(dicom_images, roi_series, average_images=False):
+def ttf_properties(dicom_images, rois, average_images=False):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
+    if not isinstance(rois, list):
+        rois = [rois]
     pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
     pixel_size_x_mm = pixel_size_xy_mm[0]
     pixel_size_y_mm = pixel_size_xy_mm[1]
@@ -84,7 +86,7 @@ def ttf_properties(dicom_images, roi_series, average_images=False):
         images = [np.mean(images, axis=0)]
     # loop over ROIs and images
     ret = []
-    for i_roi, roi in enumerate(roi_series):
+    for i_roi, roi in enumerate(rois):
         # (!) in "numpy images" the 1st coordinate is y
         fgd_list = []
         bkg_list = []

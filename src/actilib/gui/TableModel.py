@@ -52,7 +52,7 @@ class ROITableModel(QAbstractTableModel):
         self._add_counter += 1
         if name is None:
             name = 'ROI{}'.format(self._add_counter)
-        new_entry = [name, shape, center_y, center_x, size]
+        new_entry = [name, shape, center_x, center_y, size]
         if self._data[-1] == self._dummyrow:
             self._data[-1] = new_entry
         else:

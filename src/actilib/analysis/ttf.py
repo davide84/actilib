@@ -15,11 +15,11 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     esf_shifted_sorted_indexes = np.argsort(np.abs(esf - esf_mid))
     bin_mid = esf_shifted_sorted_indexes[0]  # bin of middle value
     if np.mean(esf[:bin_mid]) > np.mean(esf[bin_mid:]):  # ESF higher at the left -> roi_hu higher than background?
-        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][1]
+        bin_15p = np.asarray(esf < esf_15p).nonzero()[0][0]
         bin_85p = np.asarray(esf > esf_85p).nonzero()[0][-1]
     else:
         bin_15p = np.asarray(esf < esf_15p).nonzero()[0][-1]
-        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][1]
+        bin_85p = np.asarray(esf > esf_85p).nonzero()[0][0]
     bin_win = hann_window * abs(bin_85p - bin_15p)
     bin_hann_min = max(bin_mid - bin_win, 0)
     bin_hann_max = min(bin_mid + bin_win, len(esf) - 2)  # additional -1 because LSF will have 1 bin less

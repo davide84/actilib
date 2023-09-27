@@ -109,6 +109,9 @@ def ttf_properties(dicom_images, rois, average_images=False):
             'frq': frq.tolist(),
             'f10': other['f10'],
             'f50': other['f50'],
+            'huavg': other['fgd'],
+            'hubkg': other['bkd'],
+            'noise': other['noi'],
             'contrast': other['cnt']
         })
     return ret

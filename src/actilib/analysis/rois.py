@@ -13,6 +13,7 @@ class PixelROI:
         self._size = size
         self._center_x = center_x
         self._center_y = center_y
+        self._flag_center_adjusted = False
         self._name = name if name is not None else 'ROI-{}'.format(id(self))
 
     def name(self):
@@ -70,16 +71,23 @@ class PixelROI:
     def get_masked_sum(self, image):
         return np.sum(np.multiply(image, self.get_mask(image)))
 
-    def refine_center(self, image):
-        # crop the image around the roi - a square crop also for roud rois, but does not matter
+    def auto_adjust_center(self, image, max_correction_px=2, force_recalculation=False):
+        if self._flag_center_adjusted and not force_recalculation:
+            return self.center_x(), self.center_y()
+        # crop the image around the roi - a square crop also for round rois, but does not matter
         # the pixel values are used to weight the coordinates and find the middle value
-        margin_px = 5
         mesh_x, mesh_y = np.meshgrid(range(len(image[0])), range(len(image)))
         mask = np.zeros(image.shape)
         [i_t, i_b, i_l, i_r] = self.indexes_tblr(margin_px=5)  # arbitrary margin so that the crop contains the gradient
         mask[i_t:i_b, i_l:i_r] = image[i_t:i_b, i_l:i_r]
         total = np.sum(mask)
-        self.set_center(np.sum(np.multiply(mesh_x, mask)) / total, np.sum(np.multiply(mesh_y, mask)) / total)
+        new_cx, new_cy = np.sum(np.multiply(mesh_x, mask)) / total, np.sum(np.multiply(mesh_y, mask)) / total
+        if abs(self._center_x - new_cx) < max_correction_px:
+            self.set_center(new_cx, self._center_y)
+            self._flag_center_adjusted = True
+        if abs(self._center_y - new_cy) < max_correction_px:
+            self.set_center(self._center_x, new_cy)
+            self._flag_center_adjusted = True
         return self.center_x(), self.center_y()
 
     def get_distance_from_center(self, image=None, array_size_yx=None):

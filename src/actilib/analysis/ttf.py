@@ -93,9 +93,10 @@ def ttf_properties(dicom_images, rois, average_images=False):
         cnt_list = []
         cnr_list = []
         noi_list = []
+        # re-estimate center (precision needed for radial profile calculation)
+        # we do it only once on the middle image, which should contain clear structures
+        roi.auto_adjust_center(images[int(len(images)/2)])
         for i_image, image in enumerate(images):
-            # re-estimate center (precision needed for radial profile calculation)
-            roi.refine_center(image)
             frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_x_mm)
             fgd_list.append(other['fgd'])
             bkg_list.append(other['bkg'])
@@ -110,7 +111,7 @@ def ttf_properties(dicom_images, rois, average_images=False):
             'f10': other['f10'],
             'f50': other['f50'],
             'huavg': other['fgd'],
-            'hubkg': other['bkd'],
+            'hubkg': other['bkg'],
             'noise': other['noi'],
             'contrast': other['cnt']
         })

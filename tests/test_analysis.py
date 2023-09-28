@@ -4,7 +4,7 @@ import pkg_resources
 import unittest
 from actilib.helpers.io import load_images_from_tar
 from actilib.analysis.rois import SquareROI, CircleROI
-from actilib.analysis.nps import calculate_roi_nps
+from actilib.analysis.nps import noise_properties
 from actilib.analysis.ttf import ttf_properties
 from actilib.analysis.detectability import get_dprime_default_params, calculate_dprime
 
@@ -25,7 +25,7 @@ class TestAnalysis(unittest.TestCase):
         self.nps_rois = [SquareROI(64, 311, 156)]
 
     def test_nps(self):
-        nps = calculate_roi_nps(self.images, self.nps_rois)
+        nps = noise_properties(self.images, self.nps_rois)
         self.assertAlmostEqual(nps['noise'], 11.2, delta=0.2)
         self.assertAlmostEqual(nps['fpeak'], 0.17, delta=0.02)
         self.assertAlmostEqual(nps['fmean'], 0.21, delta=0.02)
@@ -40,7 +40,7 @@ class TestAnalysis(unittest.TestCase):
         self.assertAlmostEqual(ttf[0]['f50'], 0.34, delta=0.01)
 
     def test_dprime(self):
-        nps = calculate_roi_nps(self.images, self.nps_rois)
+        nps = noise_properties(self.images, self.nps_rois)
         ttf = ttf_properties(self.images, [self.ttf_rois[0]], average_images=True)
         freq = {
             'nps_fx': nps['f2d_x'],

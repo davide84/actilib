@@ -4,7 +4,7 @@ import pkg_resources
 import unittest
 from actilib.helpers.io import load_images_from_tar
 from actilib.phantoms.mercury4 import find_phantom_center_and_radius
-from actilib.analysis.nps import calculate_roi_nps
+from actilib.analysis.nps import noise_properties
 from actilib.analysis.rois import create_circle_of_rois
 
 
@@ -43,7 +43,7 @@ class TestNPS(unittest.TestCase):
         #
         # loop on the ROIs, extract the pixels and calculate the ROI values
         #
-        prop = calculate_roi_nps(images, rois)
+        prop = noise_properties(images, rois)
         self.assertAlmostEqual(prop['huavg'], -67.306, delta=0.001)
         self.assertAlmostEqual(prop['noise'], 11.8, delta=0.1)
         self.assertAlmostEqual(prop['noise_std'], 0.8, delta=0.1)

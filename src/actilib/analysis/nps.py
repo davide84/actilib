@@ -2,7 +2,20 @@ import numpy as np
 from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth, cart2pol
 
 
-def calculate_roi_nps(dicom_images, rois, fft_samples=128):
+def calculate_roi_nps(pixels, roi, pixel_size_xy_mm, fft_samples=128):
+    fft_size = [fft_samples, fft_samples]
+    [y1, y2, x1, x2] = roi.indexes_tblr()
+    norm = np.prod(pixel_size_xy_mm) / (roi.size() ** 2)
+    roi_pixels = pixels[y1 - 1:y2, x1 - 1:x2]  # (!) in "numpy images" the 1st coordinate is y
+    # do stuff with the ROI pixels
+    hu = np.mean(roi_pixels)
+    # subtract mean value
+    roi_sub = subtract_2d_poly_mean(roi_pixels)
+    nps = norm * np.abs(np.fft.fftshift(np.fft.fftn(roi_sub, fft_size))) ** 2
+    return hu, nps
+
+
+def noise_properties(dicom_images, rois, average_images=False, fft_samples=128):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
     if not isinstance(rois, list):
@@ -10,8 +23,12 @@ def calculate_roi_nps(dicom_images, rois, fft_samples=128):
     pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
     pixel_size_x_mm = pixel_size_xy_mm[0]
     pixel_size_y_mm = pixel_size_xy_mm[1]
+    images = []
+    for image in dicom_images:
+        images.append(image['pixels'])
+    if average_images:
+        images = [np.mean(images, axis=0)]
     # prepare variables
-    fft_size = [fft_samples, fft_samples]
     freq_x = fft_frequencies(fft_samples, pixel_size_x_mm)
     freq_y = fft_frequencies(fft_samples, pixel_size_y_mm)
     dfreq_x = 1 / (pixel_size_x_mm * fft_samples)
@@ -20,17 +37,10 @@ def calculate_roi_nps(dicom_images, rois, fft_samples=128):
     nps_series = []
     var_series = []
     # loop over ROIs and images
-    for i_roi, roi in enumerate(rois):
-        [y1, y2, x1, x2] = roi.indexes_tblr()
-        norm = np.prod(pixel_size_xy_mm) / (roi.size() ** 2)
-        for i_image, dicom_image in enumerate(dicom_images):
-            roi_pixels = dicom_image['pixels'][y1-1:y2, x1-1:x2]  # (!) in "numpy images" the 1st coordinate is y
-            # do stuff with the ROI pixels
-            hu = np.mean(roi_pixels)
+    for roi in rois:
+        for image in images:
+            hu, nps = calculate_roi_nps(image, roi, pixel_size_xy_mm)
             hu_series.append(hu)
-            # subtract mean value
-            roi_sub = subtract_2d_poly_mean(roi_pixels)
-            nps = norm * np.abs(np.fft.fftshift(np.fft.fftn(roi_sub, fft_size))) ** 2
             nps_series.append(nps)
             var_series.append(np.sum(nps) * dfreq_x * dfreq_y)
     # applying formula for 2D NPS, then radial profile
@@ -54,3 +64,5 @@ def calculate_roi_nps(dicom_images, rois, fft_samples=128):
         'nps_1d': nps_1d.tolist(),
         'nps_2d': nps_2d.tolist()
     }
+
+

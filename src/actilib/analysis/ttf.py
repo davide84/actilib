@@ -40,7 +40,8 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     return frq_resampled, ttf_resampled, lsf
 
 
-def calculate_roi_ttf(pixels, roi, pixel_size_mm):
+def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
+    pixel_size_mm = pixel_size_xy_mm[0]  # we assume square pixels otherwise the radius in mm is a mess to calculate...
     # prepare masks and masked images
     mask_fgd = roi.get_annular_mask(pixels, margin_outer=-roi.radius() * 0.1, margin_inner=-roi.radius())
     mask_bkg = roi.get_annular_mask(pixels, margin_outer=roi.radius(), margin_inner=roi.radius() * 0.8)
@@ -77,8 +78,6 @@ def ttf_properties(dicom_images, rois, average_images=False):
     if not isinstance(rois, list):
         rois = [rois]
     pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
-    pixel_size_x_mm = pixel_size_xy_mm[0]
-    pixel_size_y_mm = pixel_size_xy_mm[1]
     images = []
     for image in dicom_images:
         images.append(image['pixels'])
@@ -97,7 +96,7 @@ def ttf_properties(dicom_images, rois, average_images=False):
         # we do it only once on the middle image, which should contain clear structures
         roi.auto_adjust_center(images[int(len(images)/2)])
         for i_image, image in enumerate(images):
-            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_x_mm)
+            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_xy_mm)
             fgd_list.append(other['fgd'])
             bkg_list.append(other['bkg'])
             cnt_list.append(other['cnt'])

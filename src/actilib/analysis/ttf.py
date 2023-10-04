@@ -32,7 +32,7 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     # finally calculating the TTF
     ttf = np.abs(np.fft.fftn(lsf))
     ttf = ttf[0:math.floor(len(ttf)/2)]  # cutting second half of array
-    ttf = ttf / ttf[0]  # normalisation
+    ttf = ttf / np.max(ttf[0:math.floor(len(ttf)/20)])  # norm: max of first 5%. Should be ttf[0] but troubles if small
     frq = np.linspace(0, 0.5 / bin_width, len(ttf))
     # resampling
     frq_resampled = np.linspace(0, 2.0, num_samples)

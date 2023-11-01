@@ -10,6 +10,9 @@ from actilib.gui.TableModel import ROITableModel
 from actilib.gui.MplCanvas import MplCanvas
 
 
+BASE_TITLE = 'Actilib ROI Creator'
+
+
 def roi_from_row(row):
     if row[1] == 'Square':
         return SquareROI(row[4], row[2], row[3])
@@ -24,6 +27,8 @@ class RoiCreator(QMainWindow):
 
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
+
+        self.lastPath = ''
 
         self.canvas = MplCanvas()
         self.roimodel = ROITableModel()
@@ -40,7 +45,7 @@ class RoiCreator(QMainWindow):
         self.drag_roi_cxcy = None
 
         self.setGeometry(50, 50, 1300, 800)
-        self.setWindowTitle("ROI Creator")
+        self.setWindowTitle(BASE_TITLE)
         #self.setWindowIcon(QIcon(resource_filename('isi.resources', 'templogo.jpg')))
         self.draw_ui()
         self.center()
@@ -233,23 +238,27 @@ class RoiCreator(QMainWindow):
 
     def roi_load_list(self):
         # select file and write
-        fname = QFileDialog.getOpenFileName(self, 'Open file', '.', "JSON text file (*.json)")
-        if fname != ('', ''):
-            file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
-            with open(file_path, 'r', encoding='utf-8') as fin:
-                data = json.load(fin)
-            # loading images first
-            self.canvas.recursively_validate_and_load_files(data['images']['files'])
-            self.spb_slice_last.setValue(data['images']['last'])
-            self.spb_slice_first.setValue(data['images']['first'])
-            self.slider.setValue(self.spb_slice_first.value())
-            # loading ROIs
-            self.roimodel.clear()
-            header = self.roimodel.getColumns()
-            for roi in data['rois']:
-                self.roimodel.addRow(roi[header[1]], roi[header[2]], roi[header[3]], roi[header[4]], roi[header[0]])
-            self.roitable.selectRow(0)
-            self.roi_redraw_all()
+        fname = QFileDialog.getOpenFileName(self, 'Open file', str(self.lastPath), "JSON text file (*.json)")
+        if fname == ('', ''):
+            return None
+        file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
+        self.lastPath = file_path.parents[0]
+        self.setWindowTitle('{} ({})'.format(BASE_TITLE, file_path.name))
+        with open(file_path, 'r', encoding='utf-8') as fin:
+            data = json.load(fin)
+        # loading images first
+        self.canvas.recursively_validate_and_load_files(data['images']['files'])
+        self.spb_slice_last.setValue(data['images']['last'])
+        self.spb_slice_first.setValue(data['images']['first'])
+        self.slider.setValue(self.spb_slice_first.value())
+        self.select_image()
+        # loading ROIs
+        self.roimodel.clear()
+        header = self.roimodel.getColumns()
+        for roi in data['rois']:
+            self.roimodel.addRow(roi[header[1]], roi[header[2]], roi[header[3]], roi[header[4]], roi[header[0]])
+        self.roitable.selectRow(0)
+        self.roi_redraw_all()
 
     def roi_save_list(self):
         # prepare the data structure for writeout
@@ -270,11 +279,14 @@ class RoiCreator(QMainWindow):
             'last': self.spb_slice_last.value()
         }
         # select file and write
-        fname = QFileDialog.getSaveFileName(self, 'Save file', '.', "JSON text file (*.json)")
-        if fname != ('', ''):
-            file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
-            with open(file_path, 'w', encoding='utf-8') as fout:
-                json.dump({'images': imgs_out, 'rois': roi_out}, fout, indent=4)
+        fname = QFileDialog.getSaveFileName(self, 'Save file', str(self.lastPath), "JSON text file (*.json)")
+        if fname == ('', ''):
+            return
+        file_path = Path(fname[0] if isinstance(fname, tuple) else fname).with_suffix('.json')
+        self.lastPath = file_path.parents[0]
+        self.setWindowTitle('{} ({})'.format(BASE_TITLE, file_path.name))
+        with open(file_path, 'w', encoding='utf-8') as fout:
+            json.dump({'images': imgs_out, 'rois': roi_out}, fout, indent=4)
 
 
 if __name__ == '__main__':

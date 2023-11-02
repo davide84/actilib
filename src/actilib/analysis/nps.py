@@ -15,7 +15,7 @@ def calculate_roi_nps(pixels, roi, pixel_size_xy_mm, fft_samples=128):
     return hu, nps
 
 
-def noise_properties(dicom_images, rois, average_images=False, fft_samples=128):
+def noise_properties(dicom_images, rois, fft_samples=128):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
     if not isinstance(rois, list):
@@ -26,8 +26,6 @@ def noise_properties(dicom_images, rois, average_images=False, fft_samples=128):
     images = []
     for image in dicom_images:
         images.append(image['pixels'])
-    if average_images:
-        images = [np.mean(images, axis=0)]
     # prepare variables
     freq_x = fft_frequencies(fft_samples, pixel_size_x_mm)
     freq_y = fft_frequencies(fft_samples, pixel_size_y_mm)

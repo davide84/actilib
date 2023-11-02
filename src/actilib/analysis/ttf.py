@@ -114,4 +114,6 @@ def ttf_properties(dicom_images, rois, average_images=False):
             'noise': other['noi'],
             'contrast': other['cnt']
         })
+    if len(ret) == 1:
+        return ret[0]
     return ret

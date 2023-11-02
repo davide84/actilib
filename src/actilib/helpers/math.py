@@ -90,6 +90,7 @@ def running_mean(x, n=5):
 def smooth(x, window_size=5):
     # x: NumPy 1-D array containing the data to be smoothed
     # window_size: smoothing window size, must be odd number
+    # https://stackoverflow.com/questions/40443020/matlabs-smooth-implementation-n-point-moving-average-in-numpy-python
     out0 = np.convolve(x, np.ones(window_size, dtype=int), 'valid') / window_size
     r = np.arange(1, window_size-1, 2)
     start = np.cumsum(x[:window_size-1])[::2]/r
@@ -111,11 +112,11 @@ def find_x_of_threshold(x, y, y_threshold):
 
 def radial_profile(y_data, r_data, r_bins, r_range=None):
     # r_bins and r_range work as the corresponding parameters of numpy.histogram_bin_edges
-    bin_edges = np.histogram_bin_edges(r_data, bins=r_bins, range=r_range)
+    bin_edges = np.histogram_bin_edges(r_data, bins=r_bins-1, range=r_range)
     bin_index = np.digitize(r_data, bin_edges)
     # loop to average bin contributions
     y_values, v_values = np.zeros(bin_edges.size), np.zeros(bin_edges.size)
-    for b in range(len(bin_edges)):
+    for b in range(bin_edges.size):
         bin_contributors = y_data[bin_index == b]
         if len(bin_contributors) > 0:  # separate the two cases to avoid numpy warnings in the output
             y_values[b] = np.mean(bin_contributors)
@@ -125,8 +126,8 @@ def radial_profile(y_data, r_data, r_bins, r_range=None):
             v_values[b] = None
     # interpolate bins with 'None' with values from neighbors
     nans = np.isnan(y_values)
-    y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans])
-    v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans])
+    y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans], left=0.0, right=0.0)
+    v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans], left=0.0, right=0.0)
     return bin_edges, y_values, v_values
 
 

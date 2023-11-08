@@ -72,7 +72,7 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
-def ttf_properties(dicom_images, rois, average_images=False):
+def ttf_properties(dicom_images, rois, average_images=True):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
     if not isinstance(rois, list):

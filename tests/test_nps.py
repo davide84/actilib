@@ -5,55 +5,49 @@ import unittest
 from actilib.helpers.io import load_images_from_tar
 from actilib.phantoms.mercury4 import find_phantom_center_and_radius
 from actilib.analysis.nps import noise_properties
-from actilib.analysis.rois import create_circle_of_rois
-
-
-NPS_ROD_DIAMETER_MM = 15
-NPS_ROI_DIAMETER_MM = 30
-NPS_ROI_DISTCENT_MM = 10 + (NPS_ROD_DIAMETER_MM + NPS_ROI_DIAMETER_MM) / 2  # distance from center
+from actilib.analysis.rois import SquareROI
 
 
 class TestNPS(unittest.TestCase):
-    def test_nps(self):
-        #
-        # read the images and basic properties
-        #
-        tarpath = pkg_resources.resource_filename('actilib', os.path.join('resources', 'dicom_nps.tar.xz'))
-        images = load_images_from_tar(tarpath)
-        pixel_size_xy_mm = np.array(images[0]['header'].PixelSpacing)
-        image_size_xy_px = np.array([len(images[0]['pixels']), len(images[0]['pixels'][0])])
-        image_center_xy_px, section_radius_px, _, section_radius_mm = find_phantom_center_and_radius(images)
-        self.assertEqual(len(images), 16)
-        self.assertAlmostEqual(pixel_size_xy_mm[0], 0.769, delta=0.001)
-        self.assertAlmostEqual(pixel_size_xy_mm[1], 0.769, delta=0.001)
-        self.assertEqual(image_size_xy_px[0], 512)
-        self.assertEqual(image_size_xy_px[1], 512)
+    def load(self, filename):
+        tarpath = pkg_resources.resource_filename('actilib', os.path.join('resources', filename))
+        self.images = load_images_from_tar(tarpath)
+        self.pixel_size_xy_mm = np.array(self.images[0]['header'].PixelSpacing)
+        self.image_size_xy_px = np.array([len(self.images[0]['pixels']), len(self.images[0]['pixels'][0])])
+
+    def test_data_load(self):
+        self.load('dicom_nps.tar.xz')
+        image_center_xy_px, section_radius_px, _, section_radius_mm = find_phantom_center_and_radius(self.images)
+        self.assertEqual(len(self.images), 16)
+        self.assertAlmostEqual(self.pixel_size_xy_mm[0], 0.769, delta=0.001)
+        self.assertAlmostEqual(self.pixel_size_xy_mm[1], 0.769, delta=0.001)
+        self.assertEqual(self.image_size_xy_px[0], 512)
+        self.assertEqual(self.image_size_xy_px[1], 512)
         self.assertAlmostEqual(image_center_xy_px[0], 258, delta=1)
         self.assertAlmostEqual(image_center_xy_px[1], 256, delta=1)
         self.assertAlmostEqual(2*section_radius_mm, 260, delta=3)
 
-        #
-        # create the ROIs using image pixel coordinates as reference system
-        #
-        roi_diameter_px = NPS_ROI_DIAMETER_MM / pixel_size_xy_mm[0]
-        roi_distcent_px = NPS_ROI_DISTCENT_MM / pixel_size_xy_mm[0]
-        rois = create_circle_of_rois(8, roi_diameter_px, roi_distcent_px,
-                                     image_center_xy_px[0], image_center_xy_px[1])
+    def test_nps_on_nps_images(self):
+        self.load('dicom_nps.tar.xz')
+        roi = SquareROI(64, 175, 257)
+        nps = noise_properties(self.images, roi, fft_samples=128)
+        self.assertAlmostEqual(nps['huavg'], -63.8, delta=4)
+        self.assertAlmostEqual(nps['noise'], 10.2, delta=0.2)
+        self.assertAlmostEqual(nps['noise_std'], 0.62, delta=0.05)
+        self.assertAlmostEqual(nps['fpeak'], 0.16, delta=0.02)
+        self.assertAlmostEqual(nps['fmean'], 0.21, delta=0.02)
+        self.assertAlmostEqual(max(nps['nps_1d']), 260, delta=15)
 
-        #
-        # loop on the ROIs, extract the pixels and calculate the ROI values
-        #
-        prop = noise_properties(images, rois)
-        self.assertAlmostEqual(prop['huavg'], -67.306, delta=0.001)
-        self.assertAlmostEqual(prop['noise'], 11.8, delta=0.1)
-        self.assertAlmostEqual(prop['noise_std'], 0.8, delta=0.1)
-        self.assertAlmostEqual(prop['f1d'][2], 0.031, delta=0.001)
-        self.assertAlmostEqual(prop['f2d_x'][1], -0.639, delta=0.001)
-        self.assertEqual(len(prop['f2d_y']), 128)
-        self.assertAlmostEqual(prop['fpeak'], 0.0787, delta=0.001)
-        self.assertAlmostEqual(prop['fmean'], 0.21, delta=0.01)
-        self.assertAlmostEqual(prop['nps_1d'][4], 350, delta=30)
-        self.assertAlmostEqual(prop['nps_2d'][0][0], 0.54, delta=0.01)
+    def test_nps_on_ttf_images(self):
+        self.load('dicom_ttf.tar.xz')
+        roi = SquareROI(64, 309, 156)
+        nps = noise_properties(self.images, roi, fft_samples=128)
+        self.assertAlmostEqual(nps['huavg'], -64.4, delta=0.1)
+        self.assertAlmostEqual(nps['noise'], 10.8, delta=0.3)
+        self.assertAlmostEqual(nps['noise_std'], 0.78, delta=0.01)
+        self.assertAlmostEqual(nps['fpeak'], 0.17, delta=0.02)
+        self.assertAlmostEqual(nps['fmean'], 0.21, delta=0.01)
+        self.assertAlmostEqual(max(nps['nps_1d']), 277, delta=15)
 
 
 if __name__ == '__main__':

@@ -99,7 +99,7 @@ def smooth(x, window_size=5):
 
 
 def find_x_of_threshold(x, y, y_threshold):
-    bin_thr = np.argsort(np.abs(y - y_threshold))[0]  # approximate position (is an integer)
+    bin_thr = np.argmax((y - y_threshold) < 0)
     bin_min = max(bin_thr - 1, 0)
     bin_max = min(bin_thr + 1, len(y) - 1)
     # upsample to obtain sub-integer resolution

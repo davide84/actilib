@@ -5,6 +5,9 @@ from actilib.analysis.rois import get_masked_image
 
 
 def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
+    # derivation -> LSF
+    lsf = np.gradient(esf)
+    # Hann smoothing (https://en.wikipedia.org/wiki/Hann_function)
     # preparation: we search the two bins corresponding to 15% and 85% of the ESF curve
     # and we calculate the extremities of the Hann window in terms of bin indexes
     esf_min = min(esf)
@@ -23,9 +26,6 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     bin_win = hann_window * abs(bin_85p - bin_15p)
     bin_hann_min = max(bin_mid - bin_win, 0)
     bin_hann_max = min(bin_mid + bin_win, len(esf) - 2)  # additional -1 because LSF will have 1 bin less
-    # derivation -> LSF
-    lsf = np.gradient(esf)
-    # Hann smoothing (https://en.wikipedia.org/wiki/Hann_function)
     hann = np.zeros(lsf.size)
     hann[bin_hann_min:bin_hann_max] = np.hanning(bin_hann_max - bin_hann_min)
     lsf = np.multiply(lsf, hann)

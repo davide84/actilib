@@ -47,7 +47,7 @@ def noise_properties(dicom_images, rois, fft_samples=128):
         mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
         _, mesh_r = cart2pol(mesh_x, mesh_y)
         nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, r_bins=nps_2d.shape[0],
-                                                    r_range=[0, np.ceil(2 * np.abs(mesh_r[0, 0]))])
+                                                    r_range=[0, np.ceil(2 * np.abs(mesh_r[0, 0]))], fill_value=0.0)
         peak_freq = nps_freqs[np.argmax(smooth(nps_1d))]
         mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))
         ret.append({  # returning lists instead of ndarrays to not expose numpy dependencies (e.g. JSON serialization)

@@ -110,7 +110,7 @@ def find_x_of_threshold(x, y, y_threshold):
     return x_upsampled[bin_thr]
 
 
-def radial_profile(y_data, r_data, r_bins, r_range=None):
+def radial_profile(y_data, r_data, r_bins, r_range=None, fill_value=None):
     # r_bins and r_range work as the corresponding parameters of numpy.histogram_bin_edges
     bin_edges = np.histogram_bin_edges(r_data, bins=r_bins-1, range=r_range)
     bin_index = np.digitize(r_data, bin_edges)
@@ -126,8 +126,12 @@ def radial_profile(y_data, r_data, r_bins, r_range=None):
             v_values[b] = None
     # interpolate bins with 'None' with values from neighbors
     nans = np.isnan(y_values)
-    y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans], left=0.0, right=0.0)
-    v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans], left=0.0, right=0.0)
+    if fill_value is None:
+        y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans])
+        v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans])
+    else:
+        y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans], left=fill_value, right=fill_value)
+        v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans], left=fill_value, right=fill_value)
     return bin_edges, y_values, v_values
 
 

@@ -38,7 +38,7 @@ def noise_properties(dicom_images, rois, fft_samples=128):
         nps_series = []
         var_series = []
         for image in images:
-            nps, hu = calculate_roi_nps2d(image, roi, pixel_size_xy_mm)
+            nps, hu = calculate_roi_nps2d(image, roi, pixel_size_xy_mm, fft_samples=fft_samples)
             hu_series.append(hu)
             nps_series.append(nps)
             var_series.append(np.sum(nps) * dfreq_x * dfreq_y)

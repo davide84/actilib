@@ -60,9 +60,9 @@ class PixelROI:
         self._center_y = center_y
 
     def get_mask(self, image=None):
-        return self.get_annular_mask(image, margin_inner=-self.size() / 2.0)
+        return self.get_annular_mask(image)
 
-    def get_annular_mask(self, image=None, margin_outer=0.0, margin_inner=0.0):
+    def get_annular_mask(self, image=None, radius_inner=0.0, radius_outer=None):
         raise NotImplemented
 
     def get_area(self):
@@ -71,7 +71,7 @@ class PixelROI:
     def get_masked_sum(self, image):
         return np.sum(np.multiply(image, self.get_mask(image)))
 
-    def auto_adjust_center(self, image, max_correction_px=2, force_recalculation=False):
+    def auto_adjust_center(self, image, max_correction_px=5, force_recalculation=False):
         if self._flag_center_adjusted and not force_recalculation:
             return self.center_x(), self.center_y()
         # crop the image around the roi - a square crop also for round rois, but does not matter
@@ -118,7 +118,7 @@ class SquareROI(PixelROI):
     def shape(self):
         return 'square'
 
-    def get_annular_mask(self, image=None, margin_outer=0.0, margin_inner=0.0):
+    def get_annular_mask(self, image=None, radius_inner=0.0, radius_outer=None):
         """"
         Define an annular pixel mask which has the same center as the ROI. For default values it returns the ROI mask.
 
@@ -127,12 +127,14 @@ class SquareROI(PixelROI):
         """
         if image is None:
             return np.ones((self.height(), self.width()))
+        if radius_outer is None:
+            radius_outer = self.size() / 2.0
         mask = np.zeros(image.shape)
-        if margin_inner < margin_outer:
-            mask[max(0, self.edge_t(margin_outer)):min(mask.shape[0], self.edge_b(margin_outer)),
-                 max(0, self.edge_l(margin_outer)):min(mask.shape[1], self.edge_r(margin_outer))] = 1
-            mask[max(0, self.edge_t(margin_inner)):min(mask.shape[0], self.edge_b(margin_inner)),
-                 max(0, self.edge_l(margin_inner)):min(mask.shape[1], self.edge_r(margin_inner))] = 0
+        if radius_inner <= radius_outer:
+            mask[max(0, int(self._center_y - radius_outer + 0.5)):min(mask.shape[0], int(self._center_y + radius_outer + 0.5)),
+                 max(0, int(self._center_x - radius_outer + 0.5)):min(mask.shape[1], int(self._center_x + radius_outer + 0.5))] = 1
+            mask[max(0, int(self._center_y - radius_inner + 0.5)):min(mask.shape[0], int(self._center_y + radius_inner + 0.5)),
+                 max(0, int(self._center_x - radius_inner + 0.5)):min(mask.shape[1], int(self._center_x + radius_inner + 0.5))] = 1
         return mask.astype(int)
 
 
@@ -149,20 +151,22 @@ class CircleROI(PixelROI):
     def shape(self):
         return 'circle'
 
-    def get_annular_mask(self, image=None, margin_outer=0.0, margin_inner=0.0):
+    def get_annular_mask(self, image=None, radius_inner=0.0, radius_outer=None):
         """"
         Define an annular pixel mask which has the same center as the ROI. For default values it returns the ROI mask.
 
         The position of the ROI is defined by "center" attributes and it assumes a common pixel coordinate system with
          0,0 at the top left of the image. The ROI can be totally or partially outside of the image.
         """
-        mask_size_x = int(self.width() + margin_outer + 0.5) if image is None else image.shape[1]
-        mask_size_y = int(self.height() + margin_outer + 0.5) if image is None else image.shape[0]
+        if radius_outer is None:
+            radius_outer = self.size() / 2.0
+        mask_size_x = int(2 * radius_outer + 0.5) if image is None else image.shape[1]
+        mask_size_y = int(2 * radius_outer + 0.5) if image is None else image.shape[0]
         mask = np.zeros((mask_size_x, mask_size_y))
-        if margin_inner < margin_outer:
+        if radius_inner <= radius_outer:
             dist_from_center = self.get_distance_from_center(image, (mask_size_y, mask_size_x))
-            mask[dist_from_center <= self.radius() + margin_outer] = 1
-            mask[dist_from_center <= self.radius() + margin_inner] = 0
+            mask[dist_from_center <= radius_outer] = 1
+            mask[dist_from_center <= radius_inner] = 0
         return mask.astype(int)
 
 

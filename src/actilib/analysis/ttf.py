@@ -43,19 +43,26 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
 def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     pixel_size_mm = pixel_size_xy_mm[0]  # we assume square pixels otherwise the radius in mm is a mess to calculate...
     # prepare masks and masked images
-    mask_fgd = roi.get_annular_mask(pixels, margin_outer=-roi.radius() * 0.1, margin_inner=-roi.radius())
-    mask_bkg = roi.get_annular_mask(pixels, margin_outer=roi.radius(), margin_inner=roi.radius() * 0.8)
+    # - to calculate the ROI average HU we consider a region that is 95% of the radius
+    #   if the ROI is uniform it cuts away border effects, if the ROI is not uniform then... whatever
+    # - to calculate the background values we consider a region between 110% and 150% of the radius
+    #   hoping that it is clean... we could play with quantiles to filter out stuff but then it would
+    #   rely on assumptions on the ROI structure... of course the whole concept of 'background' is
+    #   arbitrary if we only rely on the ROI position...
+    #   For proper noise calculations one should define a noise ROI at an appropriate location.
+    mask_fgd = roi.get_annular_mask(pixels, radius_outer=roi.radius() * 0.95)
+    mask_bgd = roi.get_annular_mask(pixels, radius_inner=roi.radius() * 1.1, radius_outer=roi.radius() * 1.6)
     image_masked_fgd = get_masked_image(pixels, mask_fgd)
-    image_masked_bkg = get_masked_image(pixels, mask_bkg)
+    image_masked_bgd = get_masked_image(pixels, mask_bgd)
     fgd = image_masked_fgd.mean()
-    bkg = image_masked_bkg.mean()
-    noi = image_masked_bkg.std()
-    cnt = fgd - bkg
+    bgd = image_masked_bgd.mean()
+    noi = image_masked_bgd.std()
+    cnt = fgd - bgd
     cnr = abs(cnt / noi)
     # crop image and subtract background
     crop_margin = roi.radius()  # so that we have some background around the ROI
     [i_t, i_b, i_l, i_r] = roi.indexes_tblr(margin_px=crop_margin)
-    img_crop = pixels[i_t:i_b, i_l:i_r] - bkg
+    img_crop = pixels[i_t:i_b, i_l:i_r] - bgd
     img_radi = roi.get_distance_from_center(pixels)  # needs accurate roi center
     img_radi = img_radi[i_t:i_b, i_l:i_r] * pixel_size_mm  # radii must be in mm or the frequencies will be wrong!
     # calculate radial profile
@@ -68,7 +75,7 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     frq, ttf, lsf = esf2ttf(esf, bin_width)
     f10 = find_x_of_threshold(frq, ttf, 0.1)
     f50 = find_x_of_threshold(frq, ttf, 0.5)
-    return frq, ttf, {'bkg': bkg, 'fgd': fgd, 'cnt': cnt, 'noi': noi, 'cnr': cnr,
+    return frq, ttf, {'bgd': bgd, 'fgd': fgd, 'cnt': cnt, 'noi': noi, 'cnr': cnr,
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
@@ -88,7 +95,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
     for i_roi, roi in enumerate(rois):
         # (!) in "numpy images" the 1st coordinate is y
         fgd_list = []
-        bkg_list = []
+        bgd_list = []
         cnt_list = []
         cnr_list = []
         noi_list = []
@@ -98,7 +105,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
         for i_image, image in enumerate(images):
             frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_xy_mm)
             fgd_list.append(other['fgd'])
-            bkg_list.append(other['bkg'])
+            bgd_list.append(other['bgd'])
             cnt_list.append(other['cnt'])
             cnr_list.append(other['cnr'])
             noi_list.append(other['noi'])
@@ -110,7 +117,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
             'f10': other['f10'],
             'f50': other['f50'],
             'huavg': other['fgd'],
-            'hubkg': other['bkg'],
+            'hubgd': other['bgd'],
             'noise': other['noi'],
             'contrast': other['cnt']
         })

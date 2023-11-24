@@ -55,6 +55,7 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     image_masked_fgd = get_masked_image(pixels, mask_fgd)
     image_masked_bgd = get_masked_image(pixels, mask_bgd)
     fgd = image_masked_fgd.mean()
+    std = image_masked_fgd.std()
     bgd = image_masked_bgd.mean()
     noi = image_masked_bgd.std()
     cnt = fgd - bgd
@@ -75,7 +76,7 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     frq, ttf, lsf = esf2ttf(esf, bin_width)
     f10 = find_x_of_threshold(frq, ttf, 0.1)
     f50 = find_x_of_threshold(frq, ttf, 0.5)
-    return frq, ttf, {'bgd': bgd, 'fgd': fgd, 'cnt': cnt, 'noi': noi, 'cnr': cnr,
+    return frq, ttf, {'bgd': bgd, 'fgd': fgd, 'std': std, 'cnt': cnt, 'noi': noi, 'cnr': cnr,
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
@@ -95,6 +96,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
     for i_roi, roi in enumerate(rois):
         # (!) in "numpy images" the 1st coordinate is y
         fgd_list = []
+        std_list = []
         bgd_list = []
         cnt_list = []
         cnr_list = []
@@ -105,6 +107,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
         for i_image, image in enumerate(images):
             frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_xy_mm)
             fgd_list.append(other['fgd'])
+            std_list.append(other['std'])
             bgd_list.append(other['bgd'])
             cnt_list.append(other['cnt'])
             cnr_list.append(other['cnr'])
@@ -117,6 +120,7 @@ def ttf_properties(dicom_images, rois, average_images=True):
             'f10': other['f10'],
             'f50': other['f50'],
             'huavg': other['fgd'],
+            'hustd': other['std'],
             'hubgd': other['bgd'],
             'noise': other['noi'],
             'contrast': other['cnt']

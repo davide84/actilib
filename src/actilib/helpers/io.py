@@ -36,13 +36,12 @@ def load_test_data():
 
 
 def load_image_from_file(input_file):
-    # image = {'header': None, 'pixels': None, 'display': None, 'source': 'path/to/file'}
+    # image = {'header': None, 'pixels': None, 'source': 'path/to/file'}
     dicom_data = dcmread(input_file)
     image = {
         'pixels': apply_rescale(dicom_data.pixel_array, dicom_data),  # to have proper HU values
         'source': input_file.name
     }
-    image['display'] = apply_windowing(image['pixels'], dicom_data)  # standard contrast for display
     input_file.seek(0)
     image['header'] = dcmread(input_file, stop_before_pixels=True)
     return image

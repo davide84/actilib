@@ -1,16 +1,20 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from pydicom.pixel_data_handlers.util import apply_windowing
 
 
 def show_current_image():
     plt.show()
 
 
-def display_image(pixel_array, flag_show=True):
+def display_image(pixel_array, flag_show=True, dicom_data=None):
     fig, ax = plt.subplots()
     fig.set_size_inches(18.5, 10.5)
     plt.tight_layout()
-    ax.imshow(pixel_array, cmap='gray')
+    if dicom_data is None:
+        ax.imshow(pixel_array, cmap='gray')
+    else:
+        ax.imshow(apply_windowing(pixel_array, dicom_data), cmap='gray')
     if flag_show:
         plt.show()
     return fig, ax

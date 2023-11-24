@@ -166,7 +166,7 @@ class CircleROI(PixelROI):
         if radius_inner <= radius_outer:
             dist_from_center = self.get_distance_from_center(image, (mask_size_y, mask_size_x))
             mask[dist_from_center <= radius_outer] = 1
-            mask[dist_from_center <= radius_inner] = 0
+            mask[dist_from_center < radius_inner] = 0
         return mask.astype(int)
 
 

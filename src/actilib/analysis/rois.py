@@ -65,6 +65,9 @@ class PixelROI:
     def get_annular_mask(self, image=None, radius_inner=0.0, radius_outer=None):
         raise NotImplemented
 
+    def get_masked_image(self, image):
+        return np.multiply(image, self.get_mask(image))
+
     def get_area(self):
         return np.sum(self.get_mask())
 

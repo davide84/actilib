@@ -95,7 +95,7 @@ class PixelROI:
 
     def get_distance_from_center(self, image=None, array_size_yx=None):
         if image is not None:
-            grid_y, grid_x = np.ogrid[:image.shape[1], :image.shape[0]]
+            grid_y, grid_x = np.ogrid[:image.shape[0], :image.shape[1]]
         elif array_size_yx is not None:
             grid_y, grid_x = np.ogrid[:array_size_yx[0], :array_size_yx[1]]
         else:
@@ -165,7 +165,7 @@ class CircleROI(PixelROI):
             radius_outer = self.size() / 2.0
         mask_size_x = int(2 * radius_outer + 0.5) if image is None else image.shape[1]
         mask_size_y = int(2 * radius_outer + 0.5) if image is None else image.shape[0]
-        mask = np.zeros((mask_size_x, mask_size_y))
+        mask = np.zeros((mask_size_y, mask_size_x))
         if radius_inner <= radius_outer:
             dist_from_center = self.get_distance_from_center(image, (mask_size_y, mask_size_x))
             mask[dist_from_center <= radius_outer] = 1

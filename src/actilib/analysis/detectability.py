@@ -12,7 +12,8 @@ def get_dprime_default_params():
         "contrast_hu": 15,           # contrast of the ROI [HU]
         "pixel_number": 300,         #
         "pixel_size_mm": 0.05,       #
-        "fov_mm": 15                 #
+        "fov_mm": 15,                #
+        "eye_filter": None           #
     }
 
 
@@ -37,39 +38,49 @@ def calculate_task_image(params):
     return contrast_weight
 
 
-def resample_2d_ttf(data_freq, data_ttf, pixel_size_mm, pixel_number):
+def resample_2d_ttf(data_freq, data_ttf, dest_freq):
     """Resample a TTF array to match a meshgrid"""
-    freq = fft_frequencies(pixel_number, pixel_size_mm)
-    mesh_x, mesh_y = np.meshgrid(freq, freq)
+    mesh_x, mesh_y = np.meshgrid(dest_freq, dest_freq)
     mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
     return np.interp(mesh_r, data_freq['ttf_f'], data_ttf['ttf'], 0, 0)  # linear by definition
 
 
-def resample_2d_nps(data_freq, data_nps, pixel_size_mm, pixel_number, mode='2D'):
+def resample_2d_nps(data_freq, data_nps, dest_freq, mode='2D'):
     """Resample a NPS array to match a meshgrid"""
-    freq = fft_frequencies(pixel_number, pixel_size_mm)
     if mode == 'radial':
-        mesh_x, mesh_y = np.meshgrid(freq, freq)
+        mesh_x, mesh_y = np.meshgrid(dest_freq, dest_freq)
         mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
         nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['nps_1d'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
         ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'],
                                         kind='linear', fill_value=0.0)
-        nps_resampled = ip(freq, freq)
+        nps_resampled = ip(dest_freq, dest_freq)
     # Scale the NPS as needed to maintain the noise variance from he original NPS
-    freq_spacing = freq[1] - freq[0]
+    freq_spacing = dest_freq[1] - dest_freq[0]
     scale_factor = (data_nps['noise'] ** 2) / (np.sum(nps_resampled) * (freq_spacing ** 2))
     nps_resampled = scale_factor * nps_resampled
     return nps_resampled
+
+
+def get_eye_filter(filter_type, num_points):
+    if filter_type == 'NPWE':
+        n = 1.5
+        c = 3.22  # deg^-1
+        a = 0.68
+        d = 400  # mm, visual distance
+        m = 1  # display magnification
+        np.ones(num_points)
+    return np.ones(num_points)
 
 
 def calculate_dprime(data_freq, data_nps, data_ttf, params=get_dprime_default_params()):
     pixel_size_sq = params['pixel_size_mm'] ** 2
     task_image = calculate_task_image(params)
     weights = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)) ** 2)
-    ttf_resampled = resample_2d_ttf(data_freq, data_ttf, params['pixel_size_mm'], params['pixel_number'])
-    nps_resampled = resample_2d_nps(data_freq, data_nps, params['pixel_size_mm'], params['pixel_number'])
-    eye_filter = np.ones(params['pixel_number'])  # TODO implement more eye filters other than identity matrix
+    freq = fft_frequencies(params['pixel_number'], params['pixel_size_mm'])
+    ttf_resampled = resample_2d_ttf(data_freq, data_ttf, freq)
+    nps_resampled = resample_2d_nps(data_freq, data_nps, freq)
+    eye_filter = get_eye_filter(params['eye_filter'], params['pixel_number'])
     internal_noise = np.zeros(params['pixel_number'])  # TODO implement noise calculation instead of null matrix
     freq_spacing_coeff = (1.0 / (params['pixel_size_mm'] * params['pixel_number'])) ** 2
     # finally, the d' calculation

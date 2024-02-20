@@ -12,7 +12,8 @@ def rad_from_deg(deg):
 
 
 def cart2pol(x, y):
-    return np.arctan2(y, x), np.sqrt(x**2 + y**2)
+    # np.hypot(x, y) equivalent to np.sqrt(x**2 + y**2) but less (or no) risk of ever overflowing
+    return np.arctan2(y, x), np.hypot(x, y)
 
 
 def pol2cart(theta, rho):

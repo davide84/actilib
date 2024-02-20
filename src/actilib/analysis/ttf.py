@@ -50,8 +50,8 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     #   rely on assumptions on the ROI structure... of course the whole concept of 'background' is
     #   arbitrary if we only rely on the ROI position...
     #   For proper noise calculations one should define a noise ROI at an appropriate location.
-    mask_fgd = roi.get_annular_mask(pixels, radius_outer=roi.radius() * 0.95)
-    mask_bgd = roi.get_annular_mask(pixels, radius_inner=roi.radius() * 1.1, radius_outer=roi.radius() * 1.6)
+    mask_fgd = roi.get_annular_mask(pixels, radius_outer=roi.radius() * 0.9)
+    mask_bgd = roi.get_annular_mask(pixels, radius_inner=roi.radius() * 1.1, radius_outer=roi.radius() * 1.7)
     image_masked_fgd = get_masked_image(pixels, mask_fgd)
     image_masked_bgd = get_masked_image(pixels, mask_bgd)
     fgd = image_masked_fgd.mean()

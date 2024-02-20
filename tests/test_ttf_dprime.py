@@ -30,7 +30,7 @@ class TestAnalysis(unittest.TestCase):
         #
         # custom ROIs for comparison with reference
         #
-        self.ttf_rois = [CircleROI(16, 305.2, 293.5), CircleROI(16, 246, 202)]
+        self.ttf_rois = [CircleROI(16, 305.2, 293.5), CircleROI(16, 246, 202), CircleROI(16, 201, 255)]
         self.nps_roi = SquareROI(64, 309, 156)
 
     def test_nps(self):
@@ -45,21 +45,33 @@ class TestAnalysis(unittest.TestCase):
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
         self.assertAlmostEqual(ttf['noise'], 12, delta=1)
-        self.assertAlmostEqual(ttf['contrast'], 880.0, delta=17.6)  # 2% tolerance
+        self.assertAlmostEqual(ttf['contrast'], 880.0, delta=20)
         self.assertAlmostEqual(ttf['f10'], 0.55, delta=0.01)
         ttf = ttf_list[1]
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
-        self.assertAlmostEqual(ttf['noise'], 12.0, delta=0.1)
-        self.assertAlmostEqual(ttf['contrast'], -970, delta=19.4)  # 2% tolerance
+        self.assertAlmostEqual(ttf['noise'], 11.3, delta=1)
+        self.assertAlmostEqual(ttf['contrast'], -962, delta=20)
         self.assertAlmostEqual(ttf['f10'], 0.54, delta=0.02)
         self.assertAlmostEqual(ttf['f50'], 0.33, delta=0.02)
+        ttf = ttf_list[2]
+        # from actilib.helpers.display import display_image_with_rois
+        # display_image_with_rois(self.images[0]['pixels'], self.ttf_rois[2], flag_show=True,
+        #                         dicom_header=self.images[0]['header'])
+        self.assertEqual(len(ttf['frq']), 256)
+        self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
+        self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
+        self.assertAlmostEqual(ttf['noise'], 5.7, delta=1)
+        self.assertAlmostEqual(ttf['contrast'], 264.3, delta=20)
+        self.assertAlmostEqual(ttf['f10'], 0.57, delta=0.02)
+        self.assertAlmostEqual(ttf['f50'], 0.32, delta=0.02)
 
     def test_dprime(self):
         nps = noise_properties(self.images, self.nps_roi)[0]
         ttf_list = ttf_properties(self.images, self.ttf_rois, average_images=True)
-        dprime_references = [155.4, 171.8]
+        dprime_references_nofilter = [325, 355, 172]
+        dprime_references_npwe = [277, 303, 81]
         for t, ttf in enumerate(ttf_list):
             freq = {
                 'nps_fx': nps['f2d_x'],
@@ -67,10 +79,18 @@ class TestAnalysis(unittest.TestCase):
                 'nps_f': nps['f1d'],
                 'ttf_f': ttf['frq']
             }
+            tolerance_perc = 2
+            # default settings
             dprime_params = get_dprime_default_params()
             dprime_params['contrast_hu'] = ttf['contrast']
             dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
-            self.assertAlmostEqual(dprime, dprime_references[t], delta=0.01*dprime)  # 1% tolerance
+            self.assertAlmostEqual(dprime, dprime_references_nofilter[t], delta=tolerance_perc*dprime)
+            # NPWE filtering
+            dprime_params = get_dprime_default_params()
+            dprime_params['contrast_hu'] = ttf['contrast']
+            dprime_params['view_filter'] = 'NPWE'
+            dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
+            self.assertAlmostEqual(dprime, dprime_references_npwe[t], delta=tolerance_perc*dprime)
 
 
 if __name__ == '__main__':

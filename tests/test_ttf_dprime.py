@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pkg_resources
+import traceback
 import unittest
 from actilib.helpers.io import load_images_from_tar
 from actilib.analysis.rois import SquareROI, CircleROI
@@ -10,6 +11,14 @@ from actilib.analysis.detectability import get_dprime_default_params, calculate_
 
 
 class TestAnalysis(unittest.TestCase):
+    def tearDown(self):
+        try:
+            etype, value, tb = self._outcome.errors[0][1]
+            trace = ''.join(traceback.format_exception(etype=etype, value=value, tb=tb, limit=None))
+            print(trace)
+        except:
+            pass
+
     def setUp(self) -> None:
         #
         # read the images and basic properties

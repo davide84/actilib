@@ -62,7 +62,5 @@ def noise_properties(dicom_images, rois, fft_samples=128):
             'nps_1d': nps_1d.tolist(),
             'nps_2d': nps_2d.tolist()
         })
-    if len(ret) == 1:
-        return ret[0]
     return ret
 

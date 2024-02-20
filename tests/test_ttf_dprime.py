@@ -25,19 +25,20 @@ class TestAnalysis(unittest.TestCase):
         self.nps_roi = SquareROI(64, 309, 156)
 
     def test_nps(self):
-        nps = noise_properties(self.images, self.nps_roi)
+        nps = noise_properties(self.images, self.nps_roi)[0]
         self.assertAlmostEqual(nps['noise'], 10.8, delta=0.3)
         self.assertAlmostEqual(nps['fpeak'], 0.17, delta=0.02)
 
     def test_ttf(self):
-        ttf = ttf_properties(self.images, self.ttf_rois[0], average_images=True)
+        ttf_list = ttf_properties(self.images, self.ttf_rois, average_images=True)
+        ttf = ttf_list[0]
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
         self.assertAlmostEqual(ttf['noise'], 12, delta=1)
         self.assertAlmostEqual(ttf['contrast'], 880.0, delta=17.6)  # 2% tolerance
         self.assertAlmostEqual(ttf['f10'], 0.55, delta=0.01)
-        ttf = ttf_properties(self.images, self.ttf_rois[1], average_images=True)
+        ttf = ttf_list[1]
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
@@ -47,7 +48,7 @@ class TestAnalysis(unittest.TestCase):
         self.assertAlmostEqual(ttf['f50'], 0.33, delta=0.02)
 
     def test_dprime(self):
-        nps = noise_properties(self.images, self.nps_roi)
+        nps = noise_properties(self.images, self.nps_roi)[0]
         ttf_list = ttf_properties(self.images, self.ttf_rois, average_images=True)
         dprime_references = [155.4, 171.8]
         for t, ttf in enumerate(ttf_list):

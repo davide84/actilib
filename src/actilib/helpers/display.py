@@ -7,14 +7,14 @@ def show_current_image():
     plt.show()
 
 
-def display_image(pixel_array, flag_show=True, dicom_data=None):
+def display_image(pixel_array, flag_show=True, dicom_header=None, cmap='bone'):
     fig, ax = plt.subplots()
     fig.set_size_inches(18.5, 10.5)
     plt.tight_layout()
-    if dicom_data is None:
+    if dicom_header is None:
         ax.imshow(pixel_array, cmap='gray')
     else:
-        ax.imshow(apply_windowing(pixel_array, dicom_data), cmap='gray')
+        ax.imshow(apply_windowing(pixel_array, dicom_header), cmap=cmap)
     if flag_show:
         plt.show()
     return fig, ax
@@ -36,10 +36,10 @@ def add_roi_on_image(ax, roi, color='r'):
     return None
 
 
-def display_image_with_rois(pixel_array, rois, flag_show=True):
+def display_image_with_rois(pixel_array, rois, flag_show=True, dicom_header=None, cmap='bone'):
     if not isinstance(rois, list):
         rois = [rois]
-    fig, ax = display_image(pixel_array, False)
+    fig, ax = display_image(pixel_array, False, dicom_header=dicom_header, cmap=cmap)
     for roi in rois:
         add_roi_on_image(ax, roi)
     if flag_show:

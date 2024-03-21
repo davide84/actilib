@@ -47,20 +47,23 @@ def load_image_from_file(input_file):
     return image
 
 
-def load_images_from_tar(tarpath):
+def load_images_from_tar(tar_path):
     images = []
-    with tarfile.open(tarpath, encoding='utf-8') as file_tar:
+    with tarfile.open(tar_path, encoding='utf-8') as file_tar:
         for file_name in file_tar.getmembers():
             file_dcm = file_tar.extractfile(file_name)
             images.append(load_image_from_file(file_dcm))
     return images
 
 
-def load_images_from_directory(dir_path):
+def load_images_from_directory(dir_path, sort_by_instance_number=True):
     images = []
     for file_path in sorted(Path(dir_path).glob('*')):
         if file_path.is_file():
             with open(file_path, 'rb+') as f:
-                images.append(load_image_from_file(f))
-    return images
+                image = load_image_from_file(f)
+                images.append((image['header'].InstanceNumber - 1, image))
+    if sort_by_instance_number:
+        images = sorted(images)
+    return [couple[1] for couple in images]
 

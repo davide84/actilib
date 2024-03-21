@@ -14,7 +14,7 @@ def get_dprime_default_params():
         "px_size_mm": 0.2,           #
         "view_zoom": 1,              # magnification factor to simulate display
         "view_distance_mm": 400,     #
-        "view_filter": None          #
+        "view_filter": 'NPW'         # ['NPW', 'NPWE']
     }
 
 

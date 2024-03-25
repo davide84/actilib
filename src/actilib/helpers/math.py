@@ -113,7 +113,7 @@ def find_x_of_threshold(x, y, y_threshold):
 
 def radial_profile(y_data, r_data, r_bins, r_range=None, fill_value=None):
     # r_bins and r_range work as the corresponding parameters of numpy.histogram_bin_edges
-    bin_edges = np.histogram_bin_edges(r_data, bins=r_bins-1, range=r_range)
+    bin_edges = np.histogram_bin_edges(r_data, bins=r_bins, range=r_range)
     bin_index = np.digitize(r_data, bin_edges)
     # loop to average bin contributions
     y_values, v_values = np.zeros(bin_edges.size), np.zeros(bin_edges.size)

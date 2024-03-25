@@ -112,13 +112,17 @@ def find_x_of_threshold(x, y, y_threshold):
 
 
 def radial_profile(y_data, r_data, r_bins, r_range=None, fill_value=None):
+    if not isinstance(y_data, list):
+        y_data = [y_data]
     # r_bins and r_range work as the corresponding parameters of numpy.histogram_bin_edges
     bin_edges = np.histogram_bin_edges(r_data, bins=r_bins, range=r_range)
     bin_index = np.digitize(r_data, bin_edges)
     # loop to average bin contributions
     y_values, v_values = np.zeros(bin_edges.size), np.zeros(bin_edges.size)
     for b in range(bin_edges.size):
-        bin_contributors = y_data[bin_index == b]
+        bin_contributors = np.array([])
+        for y in y_data:
+            bin_contributors = np.append(bin_contributors, y[bin_index == b])
         if len(bin_contributors) > 0:  # separate the two cases to avoid numpy warnings in the output
             y_values[b] = np.mean(bin_contributors)
             v_values[b] = np.var(bin_contributors)

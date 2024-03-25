@@ -40,7 +40,9 @@ def esf2ttf(esf, bin_width, num_samples=256, hann_window=15):
     return frq_resampled, ttf_resampled, lsf
 
 
-def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
+def calculate_roi_ttf(images, roi, pixel_size_xy_mm):
+    if not isinstance(images, list):
+        images = [images]
     pixel_size_mm = pixel_size_xy_mm[0]  # we assume square pixels otherwise the radius in mm is a mess to calculate...
     # prepare masks and masked images
     # - to calculate the ROI average HU we consider a region that is 95% of the radius
@@ -50,69 +52,62 @@ def calculate_roi_ttf(pixels, roi, pixel_size_xy_mm):
     #   rely on assumptions on the ROI structure... of course the whole concept of 'background' is
     #   arbitrary if we only rely on the ROI position...
     #   For proper noise calculations one should define a noise ROI at an appropriate location.
-    mask_fgd = roi.get_annular_mask(pixels, radius_outer=roi.radius() * 0.9)
-    mask_bgd = roi.get_annular_mask(pixels, radius_inner=roi.radius() * 1.1, radius_outer=roi.radius() * 1.7)
-    image_masked_fgd = get_masked_image(pixels, mask_fgd)
-    image_masked_bgd = get_masked_image(pixels, mask_bgd)
-    fgd = image_masked_fgd.mean()
-    std = image_masked_fgd.std()
-    bgd = image_masked_bgd.mean()
-    noi = image_masked_bgd.std()
+    fgd = 0.0
+    std = 0.0
+    bgd = 0.0
+    noi = 0.0
+    for image in images:
+        mask_fgd = roi.get_annular_mask(image, radius_outer=roi.radius() * 0.9)
+        mask_bgd = roi.get_annular_mask(image, radius_inner=roi.radius() * 1.1, radius_outer=roi.radius() * 2)
+        image_masked_fgd = get_masked_image(image, mask_fgd)
+        image_masked_bgd = get_masked_image(image, mask_bgd)
+        fgd += image_masked_fgd.mean() / len(images)
+        std += image_masked_fgd.std() / len(images)
+        bgd += image_masked_bgd.mean() / len(images)
+        noi += image_masked_bgd.std() / len(images)
     cnt = fgd - bgd
     cnr = abs(cnt / noi)
     # crop image and subtract background
     crop_margin = roi.radius()  # so that we have some background around the ROI
     [i_t, i_b, i_l, i_r] = roi.indexes_tblr(margin_px=crop_margin)
-    img_crop = pixels[i_t:i_b, i_l:i_r] - bgd
-    img_radi = roi.get_distance_from_center(pixels)  # needs accurate roi center
+    img_radi = roi.get_distance_from_center(images[0])  # needs accurate roi center
     img_radi = img_radi[i_t:i_b, i_l:i_r] * pixel_size_mm  # radii must be in mm or the frequencies will be wrong!
     # calculate radial profile
     bin_scale = 10  # arbitrary - the higher, the more detailed the ESF estimation
     bin_width = pixel_size_mm / bin_scale
     bin_edges = np.arange(0, 2 * pixel_size_mm * roi.radius(), bin_width)
+    img_crop = []
+    for image in images:
+        img_crop.append(image[i_t:i_b, i_l:i_r] - bgd)
     distance, esf, variance = radial_profile(img_crop, img_radi, r_bins=bin_edges)
     # TODO: checks and cleanup of ESF (see papers)
     # calculate TTF from ESF
     frq, ttf, lsf = esf2ttf(esf, bin_width)
+    # reference frequencies
     f10 = find_x_of_threshold(frq, ttf, 0.1)
     f50 = find_x_of_threshold(frq, ttf, 0.5)
     return frq, ttf, {'bgd': bgd, 'fgd': fgd, 'std': std, 'cnt': cnt, 'noi': noi, 'cnr': cnr,
                       'esf': esf, 'lsf': lsf, 'f10': f10, 'f50': f50}
 
 
-def ttf_properties(dicom_images, rois, average_images=True):
+def ttf_properties(dicom_images, roi, strategy='combine'):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
-    if not isinstance(rois, list):
-        rois = [rois]
     pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
     images = []
-    for image in dicom_images:
-        images.append(image['pixels'])
-    if average_images:
-        images = [np.mean(images, axis=0)]
-    # loop over ROIs and images
-    ret = []
-    for i_roi, roi in enumerate(rois):
-        # (!) in "numpy images" the 1st coordinate is y
-        fgd_list = []
-        std_list = []
-        bgd_list = []
-        cnt_list = []
-        cnr_list = []
-        noi_list = []
+    for dicom_image in dicom_images:
+        images.append(dicom_image['pixels'])
+    # loop over images
+    # (!) in "numpy images" the 1st coordinate is y
+    #
+    # processing images in two different ways
+    #
+    if len(images) == 1 or strategy == 'combine':
         # re-estimate center (precision needed for radial profile calculation)
-        # we do it only once on the middle image, which should contain clear structures
-        roi.auto_adjust_center(images[int(len(images)/2)])
-        for i_image, image in enumerate(images):
-            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_xy_mm)
-            fgd_list.append(other['fgd'])
-            std_list.append(other['std'])
-            bgd_list.append(other['bgd'])
-            cnt_list.append(other['cnt'])
-            cnr_list.append(other['cnr'])
-            noi_list.append(other['noi'])
-        ret.append({
+        # we do it only once on the average image
+        roi.auto_adjust_center(np.mean(images, axis=0))
+        frq, ttf, other = calculate_roi_ttf(images, roi, pixel_size_xy_mm)
+        return {
             'esf': other['esf'].tolist(),
             'lsf': other['lsf'].tolist(),
             'ttf': ttf.tolist(),
@@ -124,5 +119,48 @@ def ttf_properties(dicom_images, rois, average_images=True):
             'hubgd': other['bgd'],
             'noise': other['noi'],
             'contrast': other['cnt']
-        })
-    return ret
+        }
+    else:
+        ttf_list = None
+        esf_list = None
+        lsf_list = None
+        f10_list = []
+        f50_list = []
+        fgd_list = []
+        std_list = []
+        bgd_list = []
+        cnt_list = []
+        cnr_list = []
+        noi_list = []
+        for i_image, image in enumerate(images):
+            # re-estimate center (precision needed for radial profile calculation)
+            roi.auto_adjust_center(image)
+            frq, ttf, other = calculate_roi_ttf(image, roi, pixel_size_xy_mm)
+            if ttf_list is None:
+                ttf_list = np.empty((0, len(ttf)))
+                esf_list = np.empty((0, len(other['esf'])))
+                lsf_list = np.empty((0, len(other['lsf'])))
+            ttf_list = np.vstack((ttf_list, ttf))
+            esf_list = np.vstack((esf_list, other['esf']))
+            lsf_list = np.vstack((lsf_list, other['lsf']))
+            f10_list.append(other['f10'])
+            f50_list.append(other['f50'])
+            fgd_list.append(other['fgd'])
+            std_list.append(other['std'])
+            bgd_list.append(other['bgd'])
+            cnt_list.append(other['cnt'])
+            cnr_list.append(other['cnr'])
+            noi_list.append(other['noi'])
+        return {
+            'esf': esf_list.mean(axis=0).tolist(),
+            'lsf': lsf_list.mean(axis=0).tolist(),
+            'ttf': ttf_list.mean(axis=0).tolist(),
+            'frq': frq.tolist(),
+            'f10': np.mean(f10_list),
+            'f50': np.mean(f50_list),
+            'huavg': np.mean(fgd_list),
+            'hustd': np.mean(std_list),
+            'hubgd': np.mean(bgd_list),
+            'noise': np.mean(noi_list),
+            'contrast': np.mean(cnt_list)
+        }

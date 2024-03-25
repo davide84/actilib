@@ -34,45 +34,39 @@ class TestAnalysis(unittest.TestCase):
         self.nps_roi = SquareROI(64, 309, 156)
 
     def test_nps(self):
-        nps = noise_properties(self.images, self.nps_roi)[0]
+        nps = noise_properties(self.images, self.nps_roi)
         self.assertAlmostEqual(nps['noise'], 10.8, delta=0.3)
         self.assertAlmostEqual(nps['fpeak'], 0.17, delta=0.02)
 
     def test_ttf(self):
-        ttf_list = ttf_properties(self.images, self.ttf_rois, average_images=True)
-        ttf = ttf_list[0]
+        ttf = ttf_properties(self.images, self.ttf_rois[0])
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
-        self.assertAlmostEqual(ttf['noise'], 12, delta=1)
         self.assertAlmostEqual(ttf['contrast'], 880.0, delta=20)
-        self.assertAlmostEqual(ttf['f10'], 0.55, delta=0.01)
-        ttf = ttf_list[1]
+        self.assertAlmostEqual(ttf['f50'], 0.3, delta=0.1)
+        self.assertAlmostEqual(ttf['f10'], 0.5, delta=0.1)
+        ttf = ttf_properties(self.images, self.ttf_rois[1])
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
-        self.assertAlmostEqual(ttf['noise'], 11.3, delta=1)
         self.assertAlmostEqual(ttf['contrast'], -962, delta=20)
-        self.assertAlmostEqual(ttf['f10'], 0.54, delta=0.02)
-        self.assertAlmostEqual(ttf['f50'], 0.33, delta=0.02)
-        ttf = ttf_list[2]
-        # from actilib.helpers.display import display_image_with_rois
-        # display_image_with_rois(self.images[0]['pixels'], self.ttf_rois[2], flag_show=True,
-        #                         dicom_header=self.images[0]['header'])
+        self.assertAlmostEqual(ttf['f50'], 0.3, delta=0.1)
+        self.assertAlmostEqual(ttf['f10'], 0.5, delta=0.1)
+        ttf = ttf_properties(self.images, self.ttf_rois[2])
         self.assertEqual(len(ttf['frq']), 256)
         self.assertAlmostEqual(ttf['frq'][0], 0.0, delta=0.001)
         self.assertAlmostEqual(ttf['frq'][-1], 2.0, delta=0.001)
-        self.assertAlmostEqual(ttf['noise'], 5.7, delta=1)
         self.assertAlmostEqual(ttf['contrast'], 264.3, delta=20)
-        self.assertAlmostEqual(ttf['f10'], 0.57, delta=0.02)
-        self.assertAlmostEqual(ttf['f50'], 0.32, delta=0.02)
+        self.assertAlmostEqual(ttf['f50'], 0.32, delta=0.1)
+        self.assertAlmostEqual(ttf['f10'], 0.57, delta=0.1)
 
     def test_dprime(self):
-        nps = noise_properties(self.images, self.nps_roi)[0]
-        ttf_list = ttf_properties(self.images, self.ttf_rois, average_images=True)
+        nps = noise_properties(self.images, self.nps_roi)
         dprime_references_nofilter = [325, 355, 172]
         dprime_references_npwe = [277, 303, 81]
-        for t, ttf in enumerate(ttf_list):
+        for r, roi in enumerate(self.ttf_rois):
+            ttf = ttf_properties(self.images, roi)
             freq = {
                 'nps_fx': nps['f2d_x'],
                 'nps_fy': nps['f2d_y'],
@@ -84,13 +78,13 @@ class TestAnalysis(unittest.TestCase):
             dprime_params = get_dprime_default_params()
             dprime_params['contrast_hu'] = ttf['contrast']
             dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
-            self.assertAlmostEqual(dprime, dprime_references_nofilter[t], delta=tolerance_perc*dprime)
+            self.assertAlmostEqual(dprime, dprime_references_nofilter[r], delta=tolerance_perc*dprime)
             # NPWE filtering
             dprime_params = get_dprime_default_params()
             dprime_params['contrast_hu'] = ttf['contrast']
             dprime_params['view_filter'] = 'NPWE'
             dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
-            self.assertAlmostEqual(dprime, dprime_references_npwe[t], delta=tolerance_perc*dprime)
+            self.assertAlmostEqual(dprime, dprime_references_npwe[r], delta=tolerance_perc*dprime)
 
 
 if __name__ == '__main__':

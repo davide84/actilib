@@ -77,19 +77,22 @@ class PixelROI:
     def auto_adjust_center(self, image, max_correction_px=5, force_recalculation=False):
         if self._flag_center_adjusted and not force_recalculation:
             return self.center_x(), self.center_y()
-        # crop the image around the roi - a square crop also for round rois, but does not matter
-        # the pixel values are used to weight the coordinates and find the middle value
-        mesh_x, mesh_y = np.meshgrid(range(len(image[0])), range(len(image)))
-        mask = np.zeros(image.shape)
-        [i_t, i_b, i_l, i_r] = self.indexes_tblr(margin_px=5)  # arbitrary margin so that the crop contains the gradient
-        mask[i_t:i_b, i_l:i_r] = image[i_t:i_b, i_l:i_r]
-        total = np.sum(mask)
-        new_cx, new_cy = np.sum(np.multiply(mesh_x, mask)) / total, np.sum(np.multiply(mesh_y, mask)) / total
-        if abs(self._center_x - new_cx) < max_correction_px:
-            self.set_center(new_cx, self._center_y)
-            self._flag_center_adjusted = True
-        if abs(self._center_y - new_cy) < max_correction_px:
-            self.set_center(self._center_x, new_cy)
+        # get the average value inside the ROI
+        fgd_mask = self.get_annular_mask(image, radius_outer=0.4*self.size())
+        fgd_mean = np.mean(image[fgd_mask == 1])
+        fgd_std = np.std(image[fgd_mask == 1])
+        # crop the image and mask according to value interval
+        [i_t, i_b, i_l, i_r] = self.indexes_tblr(margin_px=5+max_correction_px)  # arbitrary margin so that the crop contains the gradient
+        crop = image[i_t:i_b, i_l:i_r]
+        masked = np.ma.masked_where(crop < fgd_mean - 3 * fgd_std, crop)
+        masked = np.ma.masked_where(crop > fgd_mean + 3 * fgd_std, masked).filled(0)
+        # using bin values as weights to calculate "mass center" of ROI
+        total = np.sum(masked)
+        mesh_x, mesh_y = np.meshgrid(range(masked.shape[1]), range(masked.shape[0]))
+        new_cx = i_l + np.sum(np.multiply(mesh_x, masked)) / total
+        new_cy = i_t + np.sum(np.multiply(mesh_y, masked)) / total
+        if abs(self._center_x - new_cx) < max_correction_px and abs(self._center_y - new_cy) < max_correction_px:
+            self.set_center(new_cx, new_cy)
             self._flag_center_adjusted = True
         return self.center_x(), self.center_y()
 

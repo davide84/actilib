@@ -76,13 +76,13 @@ class TestAnalysis(unittest.TestCase):
             tolerance_perc = 2
             # default settings
             dprime_params = get_dprime_default_params()
-            dprime_params['contrast_hu'] = ttf['contrast']
+            dprime_params['task_contrast_hu'] = ttf['contrast']
             dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
             self.assertAlmostEqual(dprime, dprime_references_nofilter[r], delta=tolerance_perc*dprime)
             # NPWE filtering
             dprime_params = get_dprime_default_params()
-            dprime_params['contrast_hu'] = ttf['contrast']
-            dprime_params['view_filter'] = 'NPWE'
+            dprime_params['task_contrast_hu'] = ttf['contrast']
+            dprime_params['view_model'] = 'NPWE'
             dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
             self.assertAlmostEqual(dprime, dprime_references_npwe[r], delta=tolerance_perc*dprime)
 

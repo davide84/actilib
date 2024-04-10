@@ -67,23 +67,17 @@ class TestAnalysis(unittest.TestCase):
         dprime_references_npwe = [277, 303, 81]
         for r, roi in enumerate(self.ttf_rois):
             ttf = ttf_properties(self.images, roi)
-            freq = {
-                'nps_fx': nps['f2d_x'],
-                'nps_fy': nps['f2d_y'],
-                'nps_f': nps['f1d'],
-                'ttf_f': ttf['frq']
-            }
             tolerance_perc = 2
             # default settings
             dprime_params = get_dprime_default_params()
             dprime_params['task_contrast_hu'] = ttf['contrast']
-            dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
+            dprime = calculate_dprime(nps, ttf, params=dprime_params)
             self.assertAlmostEqual(dprime, dprime_references_nofilter[r], delta=tolerance_perc*dprime)
             # NPWE filtering
             dprime_params = get_dprime_default_params()
             dprime_params['task_contrast_hu'] = ttf['contrast']
             dprime_params['view_model'] = 'NPWE'
-            dprime = calculate_dprime(freq, nps, ttf, params=dprime_params)
+            dprime = calculate_dprime(nps, ttf, params=dprime_params)
             self.assertAlmostEqual(dprime, dprime_references_npwe[r], delta=tolerance_perc*dprime)
 
 

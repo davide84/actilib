@@ -82,7 +82,13 @@ def get_eye_filter(freq_1d, params):
     return np.ones((len(freq_1d), len(freq_1d)))
 
 
-def calculate_dprime(data_freq, data_nps, data_ttf, params=get_dprime_default_params()):
+def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
+    data_freq = {
+        'nps_fx': data_nps['f2d_x'],
+        'nps_fy': data_nps['f2d_y'],
+        'nps_f': data_nps['f1d'],
+        'ttf_f': data_ttf['frq']
+    }
     task_image = calculate_task_image(params)
     pixel_size_sq = params['task_pixel_size_mm'] ** 2
     weights = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)) ** 2)

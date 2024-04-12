@@ -65,7 +65,8 @@ def resample_2d_nps(data_freq, data_nps, dest_freq, mode='2D'):
     return nps_resampled
 
 
-def get_eye_filter(freq_1d, params):
+def get_eye_filter(params):
+    freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
     if params['view_model'] == 'NPWE':
         # the following three parameters are hardcoded because nobody is actually changing them
         n = 1.5
@@ -95,7 +96,7 @@ def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
     freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
     ttf_resampled = resample_2d_ttf(data_freq, data_ttf, freq_1d)
     nps_resampled = resample_2d_nps(data_freq, data_nps, freq_1d)
-    eye_filter = get_eye_filter(freq_1d, params)
+    eye_filter = get_eye_filter(params)
     internal_noise = np.zeros(params['task_pixel_number'])  # TODO implement noise calculation instead of null matrix
     freq_spacing_coeff = (1.0 / (params['task_pixel_size_mm'] * params['task_pixel_number'])) ** 2
     # finally, the d' calculation

@@ -6,8 +6,8 @@ from actilib.helpers.math import cart2pol, fft_frequencies
 
 def get_dprime_default_params():
     return {
-        "task_profile": 'Designer',  # 2D shape of the object
-        "task_coeff": 1,             # exponent of shape (Designer profile) or blur factor (Gaussian profile)
+        "task_profile": 'Flat',      # 2D shape of the object [Flat, Gaussian, Ogive]
+        "task_profile_coeff": 1,     # blur factor (Gaussian profile) or exponent of shape (Ogive profile)
         "task_diameter_mm": 10,      # lesion diameter for simulations [mm]
         "task_contrast_hu": 15,      # contrast of the ROI [HU]
         "task_pixel_number": 300,    #
@@ -30,15 +30,18 @@ def calculate_radial_mesh(params):
 def calculate_task_image(params):
     mesh_r = calculate_radial_mesh(params)
     radius = params['task_diameter_mm'] / 2.0
-    if params['task_profile'] == 'Gaussian':
-        return (params['task_contrast_hu'] / 2) * (1 - math.erf((mesh_r - radius) / params['task_coeff']))
-    elif params['task_profile'] == 'Flat':
-        return params['task_contrast_hu'] if mesh_r <= radius else 0.0
-    elif params['task_profile'] != 'Designer':
-        print('Profile type "' + params['task_profile'] + '" not supported, using "Designer"')
-    contrast_weight = ((1 - ((mesh_r / radius) ** 2)) ** params['task_coeff']) * params['task_contrast_hu']
-    contrast_weight[mesh_r > radius] = 0
-    return contrast_weight
+    if params['task_profile'] == 'Flat':
+        task = np.zeros(mesh_r.shape)
+        task[mesh_r <= radius] = params['task_contrast_hu']
+    elif params['task_profile'] == 'Gaussian':
+        task = (params['task_contrast_hu'] / 2) * (1 - math.erf((mesh_r - radius) / params['task_profile_coeff']))
+    elif params['task_profile'] == 'Ogive':
+        task = ((1 - ((mesh_r / radius) ** 2)) ** params['task_profile_coeff']) * params['task_contrast_hu']
+        task[mesh_r > radius] = 0
+    else:
+        print('Profile type "' + params['task_profile'] + '" not supported, defaulting to "Flat"')
+        task = calculate_task_image(dict(params, profile='Flat'))
+    return task
 
 
 def resample_2d_ttf(data_freq, data_ttf, dest_freq):

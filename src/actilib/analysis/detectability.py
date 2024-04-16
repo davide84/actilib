@@ -71,7 +71,7 @@ def resample_2d_nps(data_freq, data_nps, dest_freq, mode='2D'):
 def get_eye_filter(params):
     freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
     if params['view_model'] == 'NPWE':
-        # the following three parameters are hardcoded because nobody is actually changing them
+        # the following three parameters are hardcoded because nobody is actually changing them (except c, in one paper)
         n = 1.5
         c = 3.22  # deg^-1
         a = 0.68

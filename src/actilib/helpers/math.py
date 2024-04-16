@@ -74,13 +74,13 @@ def subtract_2d_poly_mean(image):
     return image - (c[2] * x**2 + c[5] * x * y + c[6] * y**2 + c[1] * x + c[3] * y + c[0])
 
 
-def fft_frequencies(n_samples, pixel_size):
-    sampling_rate = 1 / pixel_size
-    frequency_spacing = sampling_rate / n_samples
-    frequencies = [frequency_spacing * ns for ns in range(n_samples)]
-    frequencies_shifted = np.fft.fftshift(frequencies)
-    dc_index = np.where(frequencies_shifted == 0)[0][0]
-    frequencies = [f - frequencies[dc_index] for f in frequencies]
+def fft_frequencies(num_samples, sampling_spacing, do_shift=True):
+    frequency_spacing = 1 / sampling_spacing / num_samples
+    frequencies = [frequency_spacing * n for n in range(num_samples)]
+    if do_shift:
+        frequencies_shifted = np.fft.fftshift(frequencies)
+        dc_index = np.where(frequencies_shifted == 0)[0][0]
+        frequencies = [f - frequencies[dc_index] for f in frequencies]
     return frequencies
 
 

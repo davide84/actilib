@@ -95,7 +95,7 @@ def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
     }
     task_image = calculate_task_image(params)
     pixel_size_sq = params['task_pixel_size_mm'] ** 2
-    weights = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)) ** 2)
+    task_freq = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)))
     freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
     ttf_resampled = resample_2d_ttf(data_freq, data_ttf, freq_1d)
     nps_resampled = resample_2d_nps(data_freq, data_nps, freq_1d)
@@ -103,8 +103,8 @@ def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
     internal_noise = np.zeros(params['task_pixel_number'])  # TODO implement noise calculation instead of null matrix
     freq_spacing_coeff = (1.0 / (params['task_pixel_size_mm'] * params['task_pixel_number'])) ** 2
     # finally, the d' calculation
-    partial = weights * (ttf_resampled ** 2)
-    numerator = np.sum(partial * (eye_filter ** 2)) * freq_spacing_coeff
-    denominator = math.sqrt(np.sum(partial * (eye_filter ** 4) * nps_resampled + internal_noise) * freq_spacing_coeff)
+    common = task_freq ** 2 * (ttf_resampled ** 2)
+    numerator = np.sum(common * (eye_filter ** 2)) * freq_spacing_coeff
+    denominator = math.sqrt(np.sum(common * (eye_filter ** 4) * nps_resampled + internal_noise) * freq_spacing_coeff)
     return numerator / denominator
 

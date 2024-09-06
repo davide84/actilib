@@ -52,7 +52,8 @@ class MplCanvas(FigureCanvasQTAgg):
         self.redraw_rois()
 
     def redraw_rois(self):
-        self.axes.patches.clear()
+        for patch in self.axes.patches:
+            patch.remove()
         for patch in self.roi_patches:
             self.axes.add_patch(patch)
 

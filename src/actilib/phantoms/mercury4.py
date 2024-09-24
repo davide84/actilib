@@ -25,7 +25,8 @@ def find_phantom_center_and_radius(dicom_images):
     centers_y = []
     radii = []
     for dicom_image in dicom_images:
-        ret, thr = cv.threshold(dicom_image['display'].astype(np.uint8), 100, 255, 0)
+        pixel_windowed = apply_windowing(dicom_image['pixels'], dicom_image['header'])
+        ret, thr = cv.threshold(pixel_windowed.astype(np.uint8), 100, 255, 0)
         contours, hierarchy = cv.findContours(thr, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         max_r = 0
         [center_x, center_y] = [0, 0]

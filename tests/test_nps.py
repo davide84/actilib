@@ -44,10 +44,10 @@ class TestNPS(unittest.TestCase):
         nps = noise_properties(self.images, roi, fft_samples=128)
         self.assertAlmostEqual(nps['huavg'], -64.4, delta=0.1)
         self.assertAlmostEqual(nps['noise'], 10.8, delta=0.3)
-        self.assertAlmostEqual(nps['noise_std'], 0.78, delta=0.01)
+        self.assertAlmostEqual(nps['noise_std'], 0.75, delta=0.01)
         self.assertAlmostEqual(nps['fpeak'], 0.17, delta=0.02)
         self.assertAlmostEqual(nps['fmean'], 0.21, delta=0.01)
-        self.assertAlmostEqual(max(nps['nps_1d']), 277, delta=15)
+        self.assertAlmostEqual(max(nps['nps_1d']), 300, delta=10)
 
 
 if __name__ == '__main__':

@@ -4,13 +4,11 @@ from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_
 
 def calculate_roi_nps2d(pixels, roi, pixel_size_xy_mm, fft_samples=128):
     fft_size = [fft_samples, fft_samples]
-    [y1, y2, x1, x2] = roi.indexes_tblr()
     norm = np.prod(pixel_size_xy_mm) / (roi.size() ** 2)
-    roi_pixels = pixels[y1 - 1:y2, x1 - 1:x2]  # (!) in "numpy images" the 1st coordinate is y
-    # do stuff with the ROI pixels
-    hu = np.mean(roi_pixels)
-    # subtract mean value
-    roi_sub = subtract_2d_poly_mean(roi_pixels)
+    roi_image = roi.get_cropped_image(pixels)
+    hu = np.mean(roi_image)
+    # subtract mean value (polyfit, not HU calculated above)
+    roi_sub = subtract_2d_poly_mean(roi_image)
     nps = norm * np.abs(np.fft.fftshift(np.fft.fftn(roi_sub, fft_size))) ** 2
     return nps, hu
 

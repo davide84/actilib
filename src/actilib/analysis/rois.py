@@ -68,6 +68,11 @@ class PixelROI:
     def get_masked_image(self, image):
         return np.multiply(image, self.get_mask(image))
 
+    def get_cropped_image(self, image):
+        [y1, y2, x1, x2] = self.indexes_tblr()
+        masked = self.get_masked_image(image)[y1:y2, x1:x2]
+        return np.ma.masked_where(1 - self.get_mask(), masked)
+
     def get_area(self):
         return np.sum(self.get_mask())
 

@@ -16,11 +16,17 @@ class PixelROI:
         self._flag_center_adjusted = False
         self._name = name if name is not None else 'ROI-{}'.format(id(self))
 
+    def as_dict(self):
+        return {
+            'Name': self._name, 'Shape': self.shape(),
+            'Center X': self._center_x, 'Center Y': self._center_y, 'Size': self._size
+        }
+
     def name(self):
         return self._name
 
     def shape(self):
-        raise NotImplemented
+        raise None
 
     def size(self):
         return self._size
@@ -225,3 +231,17 @@ def get_surrounding_average(image, roi, margin_outer, margin_inner=0):
     sum_small = roi_small.get_masked_sum(image)
     sum_large = roi_large.get_masked_sum(image)
     return (sum_large - sum_small) / (area_large - area_small)
+
+
+def roi_from_dict(roi_dict):
+    if roi_dict is None:
+        return None
+    if roi_dict['Shape'] == 'Circle':
+        return CircleROI(name=roi_dict['Name'], radius=roi_dict['Size']/2,
+                         center_x=roi_dict['Center X'], center_y=roi_dict['Center Y'])
+    elif roi_dict['Shape'] == 'Square':
+        return SquareROI(name=roi_dict['Name'], side=roi_dict['Size'],
+                         center_x=roi_dict['Center X'], center_y=roi_dict['Center Y'])
+    else:
+        raise NotImplemented('ROI shape "{}" not supported'.format(roi_dict['Shape']))
+

@@ -74,14 +74,9 @@ def subtract_2d_poly_mean(image):
     return image - (c[2] * x**2 + c[5] * x * y + c[6] * y**2 + c[1] * x + c[3] * y + c[0])
 
 
-def fft_frequencies(num_samples, sampling_spacing, do_shift=True):
-    frequency_spacing = 1 / sampling_spacing / num_samples
-    frequencies = [frequency_spacing * n for n in range(num_samples)]
-    if do_shift:
-        frequencies_shifted = np.fft.fftshift(frequencies)
-        dc_index = np.where(frequencies_shifted == 0)[0][0]
-        frequencies = [f - frequencies[dc_index] for f in frequencies]
-    return frequencies
+def get_polar_mesh(x, y=None):
+    mesh_x, mesh_y = np.meshgrid(x, x if y is None else y)
+    return cart2pol(mesh_x, mesh_y)
 
 
 def running_mean(x, n=5):

@@ -1,5 +1,5 @@
 import numpy as np
-from actilib.helpers.math import fft_frequencies, subtract_2d_poly_mean, radial_profile, smooth, cart2pol
+from actilib.helpers.math import subtract_2d_poly_mean, radial_profile, smooth, get_polar_mesh
 
 
 def calculate_roi_nps2d(pixels, roi, pixel_size_xy_mm, fft_samples=128):
@@ -23,8 +23,8 @@ def noise_properties(dicom_images, roi, fft_samples=128):
     for image in dicom_images:
         images.append(image['pixels'])
     # prepare variables
-    freq_x = fft_frequencies(fft_samples, pixel_size_x_mm)
-    freq_y = fft_frequencies(fft_samples, pixel_size_y_mm)
+    freq_x = np.fft.fftshift(np.fft.fftfreq(fft_samples, pixel_size_x_mm))
+    freq_y = np.fft.fftshift(np.fft.fftfreq(fft_samples, pixel_size_y_mm))
     dfreq_x = 1 / (pixel_size_x_mm * fft_samples)
     dfreq_y = 1 / (pixel_size_y_mm * fft_samples)
     ret = []
@@ -39,8 +39,7 @@ def noise_properties(dicom_images, roi, fft_samples=128):
         var_series.append(np.sum(nps) * dfreq_x * dfreq_y)
     # applying formula for 2D NPS, then radial profile
     nps_2d = np.mean(np.array(nps_series), axis=0)
-    mesh_x, mesh_y = np.meshgrid(freq_x, freq_y)
-    _, mesh_r = cart2pol(mesh_x, mesh_y)
+    _, mesh_r = get_polar_mesh(freq_x, freq_y)
     nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, r_bins=nps_2d.shape[0],
                                                 r_range=[0, np.ceil(np.abs(mesh_r[0, 0]))], fill_value=0.0)
     peak_freq = nps_freqs[np.argmax(smooth(nps_1d))]

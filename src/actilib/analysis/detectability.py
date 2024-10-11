@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import scipy.interpolate
-from actilib.helpers.math import cart2pol, fft_frequencies
+from actilib.helpers.math import get_polar_mesh
 
 
 def get_dprime_default_params():
@@ -22,8 +22,7 @@ def get_dprime_default_params():
 def calculate_radial_mesh(params):
     fov_mm = params["task_pixel_number"] * params["task_pixel_size_mm"]
     x = [(i * params['task_pixel_size_mm'] - fov_mm / 2.0) for i in range(params['task_pixel_number'])]
-    mesh_x, mesh_y = np.meshgrid(x, x)
-    mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
+    mesh_a, mesh_r = get_polar_mesh(x)
     return mesh_r
 
 
@@ -46,44 +45,42 @@ def calculate_task_image(params):
 
 def resample_2d_ttf(data_freq, data_ttf, dest_freq):
     """Resample a TTF array to match a meshgrid"""
-    mesh_x, mesh_y = np.meshgrid(dest_freq, dest_freq)
-    mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
+    mesh_a, mesh_r = get_polar_mesh(dest_freq)
     return np.interp(mesh_r, data_freq['ttf_f'], data_ttf['ttf'], 0, 0)  # linear by definition
 
 
 def resample_2d_nps(data_freq, data_nps, dest_freq, mode='2D'):
     """Resample a NPS array to match a meshgrid"""
     if mode == 'radial':
-        mesh_x, mesh_y = np.meshgrid(dest_freq, dest_freq)
-        mesh_a, mesh_r = cart2pol(mesh_x, mesh_y)
+        mesh_a, mesh_r = get_polar_mesh(dest_freq)
         nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['nps_1d'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
         ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'],
                                         kind='linear', fill_value=0.0)
         nps_resampled = ip(dest_freq, dest_freq)
-    # Scale the NPS as needed to maintain the noise variance from he original NPS
+    # Scale the NPS as needed to maintain the noise variance from the original NPS
     freq_spacing = dest_freq[1] - dest_freq[0]
     scale_factor = (data_nps['noise'] ** 2) / (np.sum(nps_resampled) * (freq_spacing ** 2))
     nps_resampled = scale_factor * nps_resampled
     return nps_resampled
 
 
-def get_eye_filter(params):
-    freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
+def get_eye_filter(params, freq_1d=None):
+    task_npx, task_psize = params['task_pixel_number'], params['task_pixel_size_mm']
     if params['view_model'] == 'NPWE':
         # the following three parameters are hardcoded because nobody is actually changing them (except c, in one paper)
         n = 1.5
         c = 3.22  # deg^-1
         a = 0.68
         distance_mm = params['view_distance_mm']  # mm, visual distance
-        fov_mm = params["task_pixel_number"] * params["task_pixel_size_mm"]  # (!) TASK PXSIZE
-        display_mm = params['view_zoom'] * params["task_pixel_number"] * params["view_pixel_size_mm"]  # (!) VIEW PXSIZE
-        freq_2d_x, freq_2d_y = np.meshgrid(freq_1d, freq_1d)
-        freq_2d_a, freq_2d_r = cart2pol(freq_2d_x, freq_2d_y)
+        fov_mm = task_npx * task_psize  # (!) TASK PXSIZE
+        display_mm = params['view_zoom'] * task_npx * params["view_pixel_size_mm"]  # (!) VIEW PXSIZE
+        freq_1d = freq_1d if freq_1d is not None else np.fft.fftshift(np.fft.fftfreq(task_npx, task_psize))
+        freq_2d_a, freq_2d_r = get_polar_mesh(freq_1d)
         rho = freq_2d_r * fov_mm * distance_mm * np.pi / display_mm / 180
         filter = np.power(rho, 2*n) * np.exp(-c * 2 * np.power(rho, a))
         return filter / np.max(filter)
-    return np.ones((len(freq_1d), len(freq_1d)))
+    return np.ones((task_npx, task_npx))
 
 
 def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
@@ -96,10 +93,10 @@ def calculate_dprime(data_nps, data_ttf, params=get_dprime_default_params()):
     task_image = calculate_task_image(params)
     pixel_size_sq = params['task_pixel_size_mm'] ** 2
     task_freq = np.fft.fftshift(abs(pixel_size_sq * np.fft.fftn(task_image)))
-    freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
+    freq_1d = np.fft.fftshift(np.fft.fftfreq(params['task_pixel_number'], params['task_pixel_size_mm']))
     ttf_resampled = resample_2d_ttf(data_freq, data_ttf, freq_1d)
     nps_resampled = resample_2d_nps(data_freq, data_nps, freq_1d)
-    eye_filter = get_eye_filter(params)
+    eye_filter = get_eye_filter(params, freq_1d)
     internal_noise = np.zeros(params['task_pixel_number'])  # TODO implement noise calculation instead of null matrix
     freq_spacing_coeff = (1.0 / (params['task_pixel_size_mm'] * params['task_pixel_number'])) ** 2
     # finally, the d' calculation

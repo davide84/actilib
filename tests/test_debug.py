@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from actilib.analysis.detectability import fft_frequencies, get_dprime_default_params, get_eye_filter, calculate_task_image
+from actilib.analysis.detectability import get_dprime_default_params, get_eye_filter, calculate_task_image
 
 
 
@@ -13,7 +13,7 @@ params['task_pixel_size_mm'] = 0.488281011581  # from DICOM header
 params['view_pixel_size_mm'] = params['task_pixel_size_mm']
 params['view_distance_mm'] = 400
 
-freq_1d = fft_frequencies(params['task_pixel_number'], params['task_pixel_size_mm'])
+freq_1d = np.fft.fftshift(np.fft.fftfreq(params['task_pixel_number'], params['task_pixel_size_mm']))
 mm_1d = params['task_pixel_size_mm'] * np.arange(-params['task_pixel_number']/2, params['task_pixel_number']/2)
 task_image = calculate_task_image(params)
 filter = get_eye_filter(params)

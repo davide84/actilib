@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import scipy.interpolate
+from scipy.interpolate import RectBivariateSpline
 from actilib.helpers.math import get_polar_mesh
 
 
@@ -55,9 +55,8 @@ def resample_2d_nps(data_freq, data_nps, dest_freq, mode='2D'):
         mesh_a, mesh_r = get_polar_mesh(dest_freq)
         nps_resampled = np.interp(mesh_r, data_freq['nps_f'], data_nps['nps_1d'], 0, 0)  # linear by definition
     else:  # default equivalent to mode == '2D'
-        ip = scipy.interpolate.interp2d(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'],
-                                        kind='linear', fill_value=0.0)
-        nps_resampled = ip(dest_freq, dest_freq)
+        r = RectBivariateSpline(data_freq['nps_fx'], data_freq['nps_fy'], data_nps['nps_2d'])
+        nps_resampled = r(dest_freq, dest_freq)
     # Scale the NPS as needed to maintain the noise variance from the original NPS
     freq_spacing = dest_freq[1] - dest_freq[0]
     scale_factor = (data_nps['noise'] ** 2) / (np.sum(nps_resampled) * (freq_spacing ** 2))

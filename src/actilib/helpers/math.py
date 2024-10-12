@@ -118,20 +118,13 @@ def radial_profile(y_data, r_data, r_bins, r_range=None, fill_value=None):
         bin_contributors = np.array([])
         for y in y_data:
             bin_contributors = np.append(bin_contributors, y[bin_index == b])
-        if len(bin_contributors) > 0:  # separate the two cases to avoid numpy warnings in the output
-            y_values[b] = np.mean(bin_contributors)
-            v_values[b] = np.var(bin_contributors)
-        else:
-            y_values[b] = None
-            v_values[b] = None
+            # if bin_contributors is empty we get numpy warnings
+            y_values[b] = np.mean(bin_contributors) if len(bin_contributors) > 0 else None
+            v_values[b] = np.var(bin_contributors) if len(bin_contributors) > 0 else None
     # interpolate bins with 'None' with values from neighbors
     nans = np.isnan(y_values)
-    if fill_value is None:
-        y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans])
-        v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans])
-    else:
-        y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans], left=fill_value, right=fill_value)
-        v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans], left=fill_value, right=fill_value)
+    y_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], y_values[~nans], left=fill_value, right=fill_value)
+    v_values[nans] = np.interp(bin_edges[nans], bin_edges[~nans], v_values[~nans], left=fill_value, right=fill_value)
     return bin_edges, y_values, v_values
 
 

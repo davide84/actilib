@@ -17,8 +17,7 @@ def noise_properties(dicom_images, roi, fft_samples=128):
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
     pixel_size_xy_mm = np.array(dicom_images[0]['header'].PixelSpacing)
-    pixel_size_x_mm = pixel_size_xy_mm[0]
-    pixel_size_y_mm = pixel_size_xy_mm[1]
+    pixel_size_x_mm, pixel_size_y_mm = pixel_size_xy_mm
     images = []
     for image in dicom_images:
         images.append(image['pixels'])
@@ -27,7 +26,6 @@ def noise_properties(dicom_images, roi, fft_samples=128):
     freq_y = np.fft.fftshift(np.fft.fftfreq(fft_samples, pixel_size_y_mm))
     dfreq_x = 1 / (pixel_size_x_mm * fft_samples)
     dfreq_y = 1 / (pixel_size_y_mm * fft_samples)
-    ret = []
     # loop over images
     hu_series = []
     nps_series = []
@@ -40,8 +38,7 @@ def noise_properties(dicom_images, roi, fft_samples=128):
     # applying formula for 2D NPS, then radial profile
     nps_2d = np.mean(np.array(nps_series), axis=0)
     _, mesh_r = get_polar_mesh(freq_x, freq_y)
-    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, r_bins=nps_2d.shape[0],
-                                                r_range=[0, np.ceil(np.abs(mesh_r[0, 0]))], fill_value=0.0)
+    nps_freqs, nps_1d, nps_var = radial_profile(nps_2d, mesh_r, r_bins=nps_2d.shape[0], fill_value=0.0)
     peak_freq = nps_freqs[np.argmax(smooth(nps_1d))]
     mean_freq = np.sum(nps_1d * nps_freqs / sum(nps_1d))
     return {  # returning lists instead of ndarrays to not expose numpy dependencies (e.g. JSON serialization)

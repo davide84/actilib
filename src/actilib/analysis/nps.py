@@ -3,14 +3,11 @@ from actilib.helpers.math import subtract_2d_poly_mean, radial_profile, smooth, 
 
 
 def calculate_roi_nps2d(pixels, roi, pixel_size_xy_mm, fft_samples=128):
-    fft_size = [fft_samples, fft_samples]
     norm = np.prod(pixel_size_xy_mm) / (roi.size() ** 2)
     roi_image = roi.get_cropped_image(pixels)
-    hu = np.mean(roi_image)
-    # subtract mean value (polyfit, not HU calculated above)
     roi_sub = subtract_2d_poly_mean(roi_image)
-    nps = norm * np.abs(np.fft.fftshift(np.fft.fftn(roi_sub, fft_size))) ** 2
-    return nps, hu
+    nps = norm * np.abs(np.fft.fftshift(np.fft.fft2(roi_sub, (fft_samples, fft_samples)))) ** 2
+    return nps, np.mean(roi_image)
 
 
 def noise_properties(dicom_images, roi, fft_samples=128):

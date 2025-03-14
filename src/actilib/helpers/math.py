@@ -4,11 +4,11 @@ import numpy as np
 
 
 def deg_from_rad(rad):
-    return rad * 360 / (2 * math.pi)
+    return rad * 180 / math.pi
 
 
 def rad_from_deg(deg):
-    return deg * 2 * math.pi / 360.0
+    return deg * math.pi / 180.0
 
 
 def cart2pol(x, y):

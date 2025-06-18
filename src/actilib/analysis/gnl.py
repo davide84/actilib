@@ -1,7 +1,8 @@
 from enum import Enum
 import numpy as np
+from actilib.helpers.io import load_image_from_path
 from scipy.ndimage import generic_filter
-from actilib.helpers.display import display_image
+# from actilib.helpers.display import display_image
 
 
 """
@@ -43,15 +44,14 @@ def calculate_gnl(dicom_images, tissue=Tissue.SOFT_TISSUE, kernel_size_mm=6):
         # 1. threshold-based segmentation
         segm = segment_with_thresholds(pixels)
         segm[segm != tissue.value] = 0
-        display_image(segm)  # DEBUG
+        # display_image(segm)  # DEBUG
         # 2. calculation of local SD
         kernel_size_px = np.round(kernel_size_mm / dicom_image['header'].PixelSpacing[0]).astype(int)
         sd_map = generic_filter(pixels, np.std, size=kernel_size_px)
         sd_map[segm != tissue.value] = 0
-        display_image(np.log(1 + sd_map), cmap='jet')  # DEBUG
+        # display_image(np.log(1 + sd_map), cmap='jet')  # DEBUG
         # 3. histogram of local SD and mode
         histo_max = int(np.max(sd_map) + 1)
         histogram, bin_edges = np.histogram(sd_map, bins=histo_max, range=(1, histo_max))
         gnls.append(np.argmax(histogram))  # bin size = 1 -> bin index = bin upper edge = x value
     return np.mean(gnls), np.std(gnls)
-

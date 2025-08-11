@@ -12,7 +12,8 @@ This function takes a single DICOM image (including headers) as input and calcul
 
 
 def calculate_gnl(dicom_images, tissues=SegMats.SOFT_TISSUE, kernel_size_mm=6,
-                  hu_ranges=get_default_segmentation_thresholds()):
+                  hu_ranges=get_default_segmentation_thresholds(),
+                  no_noise_value=np.nan, return_plot_data=False, mask_rois=None):
     # input preparation
     if not isinstance(dicom_images, list):
         dicom_images = [dicom_images]
@@ -22,21 +23,28 @@ def calculate_gnl(dicom_images, tissues=SegMats.SOFT_TISSUE, kernel_size_mm=6,
     gnls = []
     for dicom_image in dicom_images:
         pixels = dicom_image['pixels']
+        # 0. masking ROIs (e.g. image numbers, arrows...)
+        if mask_rois is not None:
+            if not isinstance(mask_rois, list):
+                mask_rois = [mask_rois]
+            for roi in mask_rois:
+                pixels[roi[0]:roi[1], roi[2]:roi[3]] = roi[4]
         # 1. threshold-based segmentation
-        img_segm = segment_with_thresholds(pixels, hu_ranges)
+        segmap = segment_with_thresholds(pixels, hu_ranges)
         # 2. calculation of local SD
         kernel_size_px = np.round(kernel_size_mm / dicom_image['header'].PixelSpacing[0]).astype(int)
-        img_noise = generic_filter(pixels, np.std, size=kernel_size_px)
         if [None] != tissues:
-            img_gnl = np.zeros_like(img_noise)
+            gnlmap = np.full(segmap.shape, no_noise_value)
             for tissue in tissues:
-                img_gnl = np.where(img_segm == tissue.value, img_noise, img_gnl)
+                img_segm = np.where(segmap == tissue.value, pixels, np.nan)
+                img_gnl = generic_filter(img_segm, np.nanstd, size=kernel_size_px)
+                gnlmap = np.where(segmap == tissue.value, img_gnl, gnlmap)
         else:
-            img_gnl = img_noise
-        # from actilib.helpers.display import display_image  # DEBUG
-        # display_image(np.log(1 + img_gnl), cmap='jet')  # DEBUG
+            gnlmap = generic_filter(pixels, np.nanstd, size=kernel_size_px)
         # 3. histogram of local SD and mode
-        histo_max = int(np.max(img_gnl) + 1)
-        histogram, bin_edges = np.histogram(img_gnl, bins=histo_max, range=(1, histo_max))
+        histo_max = int(np.nanmax(gnlmap) + 1)
+        histogram, bin_edges = np.histogram(gnlmap, bins=histo_max, range=(1, histo_max))
         gnls.append(np.argmax(histogram))  # bin size = 1 -> bin index = bin upper edge = x value
+        if return_plot_data:
+            return np.mean(gnls), np.std(gnls), pixels, segmap, gnlmap
     return np.mean(gnls), np.std(gnls)

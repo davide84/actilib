@@ -2,6 +2,10 @@ from enum import Enum
 import numpy as np
 
 
+HUMIN = -999
+HUMAX = 24000
+
+
 # SEGMENTATION_MATERIALS
 # the elements are ordered by HU values to visually inspect segmented images
 class SegMats(Enum):
@@ -12,16 +16,30 @@ class SegMats(Enum):
     SOFT_TISSUE = 3
     BONE = 4
     METAL = 5  # placeholder
+    CUSTOM = 999
 
+
+MAT_NAMES = {
+    SegMats.AIR: 'Air',
+    SegMats.LUNGS: 'Lungs',
+    SegMats.FAT: 'Adipose tissue',
+    SegMats.SOFT_TISSUE: 'Soft tissue',
+    SegMats.BONE: 'Bone tissue',
+    SegMats.METAL: 'Metal (experimental)',
+    SegMats.CUSTOM: 'Custom'
+}
 
 HU_RANGES = {
-    SegMats.AIR: [-999, -800],  # let's explicitly exclude -1000 which will stay UNSEGMENTED
+    SegMats.AIR: [HUMIN, -800],  # let's explicitly exclude -1000 which will stay UNSEGMENTED
     SegMats.LUNGS: [-800, -300],
     SegMats.FAT: [-300, 0],
     SegMats.SOFT_TISSUE: [0, 150],
     SegMats.BONE: [300, 1000],
-    SegMats.METAL: [1000, 24000]
+    SegMats.METAL: [1000, HUMAX],
+    SegMats.CUSTOM: [HUMIN, HUMAX]
 }
+
+HU_RANGES_BY_NAME = {MAT_NAMES[k]: v for k, v in HU_RANGES.items()}
 
 
 def get_default_segmentation_thresholds():

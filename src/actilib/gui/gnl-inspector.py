@@ -22,6 +22,10 @@ WINDOWS_PARAMS = {
     # 'Custom': {'W': 800, 'C': -200},  TODO implement later manual selection
 }
 
+ALPHA_SLIDER_STEP = 5
+ALPHA_SLIDER_MAX = int(100/ALPHA_SLIDER_STEP)
+
+
 class GNLInspector(QMainWindow):
     def __init__(self):
         super(GNLInspector, self).__init__()
@@ -59,14 +63,18 @@ class GNLInspector(QMainWindow):
         self.qcb_window = QComboBox()
         self.overlay_segmaps = [None]
         self.overlay_gnlmaps = [None]
+        self.sli_alpha_img = QSlider(Qt.Horizontal)
         self.sli_alpha_seg = QSlider(Qt.Horizontal)
         self.sli_alpha_gnl = QSlider(Qt.Horizontal)
-        self.sli_alpha_seg.setRange(0, 100)
-        self.sli_alpha_gnl.setRange(0, 100)
-        self.sli_alpha_seg.setValue(0)
-        self.sli_alpha_gnl.setValue(75)
+        for sli, value in [(self.sli_alpha_img, ALPHA_SLIDER_MAX), (self.sli_alpha_seg, 0),
+                           (self.sli_alpha_gnl, int(75/ALPHA_SLIDER_STEP))]:
+            sli.setRange(0, ALPHA_SLIDER_MAX)
+            sli.setValue(value)
+        self.lbl_curr_alpha_img = QLabel()
         self.lbl_curr_alpha_seg = QLabel()
         self.lbl_curr_alpha_gnl = QLabel()
+        self.lbl_curr_alpha_img.setMinimumSize(50, 0)
+        self.lbl_curr_alpha_img.setAlignment(Qt.AlignRight)
         self.update_alpha_labels()
 
         self.setGeometry(50, 50, 1300, 800)
@@ -168,12 +176,16 @@ class GNLInspector(QMainWindow):
         lay_g_alphas.addWidget(QLabel('Display window:'), lay_g_alphas.rowCount(), 1, 1, 1)
         lay_g_alphas.addWidget(self.qcb_window, lay_g_alphas.rowCount() - 1, 2, 1, 1)
         # alpha values of overlays
+        lay_g_alphas.addWidget(QLabel('Opacity of original image:'), lay_g_alphas.rowCount(), 1, 1, 1)
+        lay_g_alphas.addWidget(self.sli_alpha_img, lay_g_alphas.rowCount() - 1, 2, 1, 1)
+        lay_g_alphas.addWidget(self.lbl_curr_alpha_img, lay_g_alphas.rowCount() - 1, 3, 1, 1, Qt.AlignRight)
         lay_g_alphas.addWidget(QLabel('Opacity of segmentation:'), lay_g_alphas.rowCount(), 1, 1, 1)
         lay_g_alphas.addWidget(self.sli_alpha_seg, lay_g_alphas.rowCount() - 1, 2, 1, 1)
         lay_g_alphas.addWidget(self.lbl_curr_alpha_seg, lay_g_alphas.rowCount() - 1, 3, 1, 1, Qt.AlignRight)
         lay_g_alphas.addWidget(QLabel('Opacity of GNL maps:'), lay_g_alphas.rowCount(), 1, 1, 1)
         lay_g_alphas.addWidget(self.sli_alpha_gnl, lay_g_alphas.rowCount() - 1, 2, 1, 1)
         lay_g_alphas.addWidget(self.lbl_curr_alpha_gnl, lay_g_alphas.rowCount() - 1, 3, 1, 1, Qt.AlignRight)
+        self.sli_alpha_img.valueChanged.connect(self.update_image)
         self.sli_alpha_seg.valueChanged.connect(self.update_image)
         self.sli_alpha_gnl.valueChanged.connect(self.update_image)
         #
@@ -234,8 +246,9 @@ class GNLInspector(QMainWindow):
         self.display_new_image_index()
 
     def update_alpha_labels(self):
-        self.lbl_curr_alpha_seg.setText('{} %'.format(self.sli_alpha_seg.value()))
-        self.lbl_curr_alpha_gnl.setText('{} %'.format(self.sli_alpha_gnl.value()))
+        self.lbl_curr_alpha_img.setText('{} %'.format(ALPHA_SLIDER_STEP * self.sli_alpha_img.value()))
+        self.lbl_curr_alpha_seg.setText('{} %'.format(ALPHA_SLIDER_STEP * self.sli_alpha_seg.value()))
+        self.lbl_curr_alpha_gnl.setText('{} %'.format(ALPHA_SLIDER_STEP * self.sli_alpha_gnl.value()))
 
     def handle_scroll_event(self, direction):
         if 'down' == direction:
@@ -246,13 +259,14 @@ class GNLInspector(QMainWindow):
     def update_image(self):
         self.update_alpha_labels()
         hu_window = WINDOWS_PARAMS[self.qcb_window.currentText()]
-        image_index = self.canvas.show_image(array_index=self.slider.value()-1, hu_window=hu_window)
+        image_index = self.canvas.show_image(array_index=self.slider.value()-1, hu_window=hu_window,
+                                             alpha=self.sli_alpha_img.value()/ALPHA_SLIDER_MAX)
         if image_index is not None:
             self.display_new_image_index()
             if self.overlay_segmaps[image_index] is not None:
-                self.canvas.show_overlay(self.overlay_segmaps[image_index], alpha=self.sli_alpha_seg.value()/100)
+                self.canvas.show_overlay(self.overlay_segmaps[image_index], alpha=self.sli_alpha_seg.value()/ALPHA_SLIDER_MAX)
             if self.overlay_gnlmaps[image_index] is not None:
-                img = self.canvas.show_overlay(self.overlay_gnlmaps[image_index], alpha=self.sli_alpha_gnl.value()/100,
+                img = self.canvas.show_overlay(self.overlay_gnlmaps[image_index], alpha=self.sli_alpha_gnl.value()/ALPHA_SLIDER_MAX,
                                                cmap='nipy_spectral')
                 self.canvas.show_colorbar(img)
 

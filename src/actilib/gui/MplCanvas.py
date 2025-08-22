@@ -116,7 +116,7 @@ class MplCanvas(FigureCanvasQTAgg):
             self.image_loaded.emit(len(validated_paths))
         return validated_paths
 
-    def show_image(self, array_index, hu_window=None):
+    def show_image(self, array_index, hu_window=None, alpha=1.0):
         if array_index > len(self.image_paths) - 1:
             return None
         try:
@@ -125,12 +125,13 @@ class MplCanvas(FigureCanvasQTAgg):
                 self.image_pixels[array_index] = self.current_image['pixels']
                 self.array_shown = self.image_pixels[array_index]
             self.reset_axes()
+            img_to_show = self.image_pixels[array_index]
             if hu_window is None:
-                self.image_shown = self.axes[0].imshow(self.image_pixels[array_index], cmap='gray')
+                self.image_shown = self.axes[0].imshow(img_to_show, cmap='gray', alpha=alpha)
             else:
                 vmin = hu_window['C'] - hu_window['W']
                 vmax = hu_window['C'] + hu_window['W']
-                self.image_shown = self.axes[0].imshow(self.image_pixels[array_index], cmap='gray', vmin=vmin, vmax=vmax)
+                self.image_shown = self.axes[0].imshow(img_to_show, cmap='gray', alpha=alpha, vmin=vmin, vmax=vmax)
             self.draw()
             return array_index
         except IndexError as e:

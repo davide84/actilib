@@ -220,6 +220,7 @@ class GNLInspector(QMainWindow):
         if image is None:
             return
         self.statusBar.showMessage('Calculating GNL, this may take a few seconds...')
+        app.processEvents()  # otherwise the calculation blocks the UI and the message does not appear
         tissue = SegMats(self.qcb_tissue.currentData())
         gnl, std, pixels, segmap, gnlmap = calculate_gnl(dicom_images=image,
                                                          tissues=tissue,

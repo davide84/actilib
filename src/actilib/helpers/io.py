@@ -3,8 +3,7 @@ import pkgutil
 import tarfile
 from pathlib import Path
 from pydicom import dcmread
-from pydicom.pixel_data_handlers import apply_rescale
-from pydicom.pixel_data_handlers.util import apply_windowing
+from pydicom.pixel_data_handlers import apply_modality_lut
 
 
 JSON_FLOAT_ROUNDING_FORMAT = '.2f'
@@ -39,7 +38,7 @@ def load_image_from_open_file(input_file):
     # image = {'header': None, 'pixels': None, 'source': 'path/to/file'}
     dicom_data = dcmread(input_file)
     image = {
-        'pixels': apply_rescale(dicom_data.pixel_array, dicom_data),  # to have proper HU values
+        'pixels': apply_modality_lut(dicom_data.pixel_array, dicom_data),   # to have proper HU values
         'source': input_file.name
     }
     input_file.seek(0)

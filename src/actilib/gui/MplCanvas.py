@@ -1,12 +1,15 @@
-import pydicom
 from pydicom.pixel_data_handlers.util import apply_modality_lut
 from pydicom.pixel_data_handlers import apply_windowing
 from PyQt5.QtCore import pyqtSignal
 from pathlib import Path
+from math import floor
+import pydicom
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.cm import ScalarMappable
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from actilib.helpers.io import load_image_from_path
 
 LOAD_RECURSION_LIMIT = 1  # 0 = dragged files only, 1 = files inside directory, 2 = directories inside directory...
 PATCH_ZORDER_DEFAULT = 1.0
@@ -18,18 +21,33 @@ ROI_COLOR_HIGHLIGHT = 'g'
 class MplCanvas(FigureCanvasQTAgg):
 
     image_loaded = pyqtSignal(int)
+    cursor_on_image = pyqtSignal(int, int, int)
+    scroll_event = pyqtSignal(str)
 
-    def __init__(self, parent=None, width=5, height=4):
+    def __init__(self, parent=None, width=5, height=5.5, hide_ticks=False):
         self.slider = None
         self.image_paths = []
-        self.image_array = []
-        self.fig = plt.Figure(figsize=(width, height))
+        self.image_pixels = []
+        self.fig, self.axes = plt.subplots(nrows=2, height_ratios=[10, 1], figsize=(width, height))
+        super(MplCanvas, self).__init__(self.fig)
+        self.mpl_connect('motion_notify_event', self.emit_current_image_coordinates)
+        self.mpl_connect('scroll_event', self.emit_scroll_event)
         self.fig.subplots_adjust(left=0.05, right=0.99, top=0.99, bottom=0.05)
-        self.axes = self.fig.add_subplot(111)
-        self.image_shown = self.axes.imshow(np.zeros((256, 256)), cmap='gray')
+        self.current_image = None
+        self.hide_image_ticks = hide_ticks
         self.roi_patches = []
         self.roi_active = None
-        super(MplCanvas, self).__init__(self.fig)
+        self.reset_axes()
+        self.array_shown = np.zeros((256, 256))
+        self.image_shown = self.axes[0].imshow(self.array_shown, cmap='gray')
+
+    def reset_axes(self):
+        for ax in self.axes:
+            ax.clear()
+        self.axes[1].axis('off')
+        if self.hide_image_ticks:
+            self.axes[0].set_xticks([])
+            self.axes[0].set_yticks([])
 
     @staticmethod
     def _patch_from_roi(roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
@@ -44,7 +62,7 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def add_roi(self, roi, color=ROI_COLOR_DEFAULT):
         self.roi_patches.append(self._patch_from_roi(roi, color))
-        self.axes.add_patch(self.roi_patches[-1])
+        self.axes[0].add_patch(self.roi_patches[-1])
 
     def replace_roi(self, index, roi, color=ROI_COLOR_DEFAULT, zorder=PATCH_ZORDER_DEFAULT):
         patch = self._patch_from_roi(roi, color, zorder)
@@ -52,10 +70,10 @@ class MplCanvas(FigureCanvasQTAgg):
         self.redraw_rois()
 
     def redraw_rois(self):
-        for patch in self.axes.patches:
+        for patch in self.axes[0].patches:
             patch.remove()
         for patch in self.roi_patches:
-            self.axes.add_patch(patch)
+            self.axes[0].add_patch(patch)
 
     def clear_rois(self):
         self.roi_patches = []
@@ -94,22 +112,55 @@ class MplCanvas(FigureCanvasQTAgg):
                     pass  # not a proper DICOM file
         if validated_paths:
             self.image_paths = validated_paths
-            self.image_array = [None] * len(validated_paths)
+            self.image_pixels = [None] * len(validated_paths)
             self.image_loaded.emit(len(validated_paths))
         return validated_paths
 
-    def show_image(self, array_index):
+    def show_image(self, array_index, hu_window=None):
+        if array_index > len(self.image_paths) - 1:
+            return None
         try:
-            if self.image_array[array_index] is None:
-                dicom = self.image_array[array_index] = pydicom.dcmread(self.image_paths[array_index])
-                self.image_array[array_index] = apply_windowing(apply_modality_lut(dicom.pixel_array, dicom), dicom)
-            if self.image_shown.get_array().shape == self.image_array[array_index].shape:
-                self.image_shown.set_data(self.image_array[array_index])
-                self.image_shown.autoscale()
+            if self.image_pixels[array_index] is None:
+                self.current_image = load_image_from_path(self.image_paths[array_index])
+                self.image_pixels[array_index] = self.current_image['pixels']
+                self.array_shown = self.image_pixels[array_index]
+            self.reset_axes()
+            if hu_window is None:
+                self.image_shown = self.axes[0].imshow(self.image_pixels[array_index], cmap='gray')
             else:
-                self.image_shown = self.axes.imshow(self.image_array[array_index], cmap='gray')
+                vmin = hu_window['C'] - hu_window['W']
+                vmax = hu_window['C'] + hu_window['W']
+                self.image_shown = self.axes[0].imshow(self.image_pixels[array_index], cmap='gray', vmin=vmin, vmax=vmax)
             self.draw()
             return array_index
         except IndexError as e:
             print(e)
         return None
+
+    def show_overlay(self, pixels, alpha=0.5, cmap='gray'):
+        ret = self.axes[0].imshow(pixels, alpha=alpha, cmap=cmap)
+        self.draw()
+        return ret
+
+    def show_colorbar(self, img):
+        sm = ScalarMappable(cmap=img.cmap, norm=img.norm)
+        self.fig.colorbar(sm, orientation='horizontal', cax=self.axes[1], location='top')
+        self.axes[1].axis('on')
+        self.axes[1].set_yticks([])
+        self.axes[1].xaxis.set_ticks_position('bottom')
+        self.axes[1].set_xlabel('GNL scale [HU]')
+        self.draw()
+
+    def get_current_image(self):
+        return self.current_image
+
+    def emit_current_image_coordinates(self, event):
+        if event.inaxes == self.axes[0]:
+            x = floor(event.xdata)
+            y = floor(event.ydata)
+            z = int(self.array_shown[y, x])
+            self.cursor_on_image.emit(x, y, z)
+
+    def emit_scroll_event(self, event):
+        if event.inaxes == self.axes[0]:
+            self.scroll_event.emit(event.button)

@@ -80,6 +80,7 @@ class GNLInspector(QMainWindow):
                                    dummyrow=['', '', '', ''])
         self.gnltable = QTableView()
         self.gnltable.setModel(self.gnlmodel)
+        self.gnl_history = []
 
         self.setGeometry(50, 50, 1300, 800)
         self.setWindowTitle(BASE_TITLE)
@@ -203,6 +204,7 @@ class GNLInspector(QMainWindow):
         self.gnltable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.gnltable.verticalHeader().setVisible(True)
         self.gnltable.verticalHeader().setFixedWidth(20)
+        self.gnltable.clicked.connect(self.show_image_from_history)
         lay_v_table.addWidget(self.gnltable)
         #
         # FILLER
@@ -250,6 +252,7 @@ class GNLInspector(QMainWindow):
         # ['Slice', 'Tissue', 'HU range', 'GNL [HU]']
         self.gnlmodel.addRow([self.slider.value(), self.qcb_tissue.currentText(),
                               [self.spb_hu_min.value(), self.spb_hu_max.value()], gnl], position='top')
+        self.gnl_history.append([self.slider.value() - 1, segmap, gnlmap])
 
     def display_new_image_index(self):
         self.lbl_pos_slice.setText('{}/{}'.format(self.slider.value(), len(self.canvas.image_paths)))
@@ -259,6 +262,8 @@ class GNLInspector(QMainWindow):
     def update_number_of_images(self, img_num):
         self.overlay_segmaps = [None] * img_num
         self.overlay_gnlmaps = [None] * img_num
+        self.gnl_history = []
+        self.gnlmodel.clear()
         self.slider.setMaximum(img_num)
         self.slider.setValue(int(img_num/2))
         self.slider.setTickPosition(QSlider.TicksRight)
@@ -289,6 +294,13 @@ class GNLInspector(QMainWindow):
                 img = self.canvas.show_overlay(self.overlay_gnlmaps[image_index], alpha=self.sli_alpha_gnl.value()/ALPHA_SLIDER_MAX,
                                                cmap='nipy_spectral')
                 self.canvas.show_colorbar(img)
+
+    def show_image_from_history(self, event):
+        slice, segmap, gnlmap = self.gnl_history[self.gnlmodel.rowCount(None)-event.row()-1]
+        self.slider.setValue(slice+1)
+        self.overlay_segmaps[self.slider.value() - 1] = segmap
+        self.overlay_gnlmaps[self.slider.value() - 1] = gnlmap
+        self.update_image()
 
     def update_cursor_position(self, x, y, hu):
         self.lbl_pos_mouse.setText('({},{})'.format(x, y))

@@ -19,7 +19,6 @@ WINDOWS_PARAMS = {
     'Lungs': {'W': 1500, 'C': -600},
     'Mediastinum': {'W': 350, 'C': 50},
     'Soft tissues': {'W': 400, 'C': 50},
-    # 'Custom': {'W': 800, 'C': -200},  TODO implement later manual selection
 }
 
 ALPHA_SLIDER_STEP = 5

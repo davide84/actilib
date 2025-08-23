@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSlider, QStatu
 from pathlib import Path
 from PyQt5.QtCore import Qt
 from actilib.analysis.rois import CircleROI, SquareROI
-from actilib.gui.TableModel import ROITableModel
+from actilib.gui.TableModel import TableModel
 from actilib.gui.MplCanvas import MplCanvas
 
 
@@ -31,9 +31,10 @@ class RoiCreator(QMainWindow):
         self.lastPath = ''
 
         self.canvas = MplCanvas()
-        self.roimodel = ROITableModel()
+        self.roimodel = TableModel()
         self.roitable = QTableView()
         self.roitable.setModel(self.roimodel)
+        self._total_roi_counter = 0
 
         self.spb_slice_first = QSpinBox()
         self.spb_slice_last = QSpinBox()
@@ -231,7 +232,11 @@ class RoiCreator(QMainWindow):
             self.canvas.highlight_roi(self.roi_current_index())
 
     def roi_add(self, shape):
-        self.roimodel.addRow(shape)
+        data = self.roimodel.getRowTemplate()
+        self._total_roi_counter += 1
+        data[0] = 'ROI{}'.format(self._total_roi_counter)
+        data[1] = shape
+        self.roimodel.addRow(data)
         self.roitable.selectRow(self.roimodel.rowCount(0) - 1)
         self.canvas.add_roi(roi_from_row(self.roimodel.getRowData(self.roimodel.rowCount(0) - 1)))
         self.roi_highlight_selected()
@@ -256,7 +261,8 @@ class RoiCreator(QMainWindow):
         self.roimodel.clear()
         header = self.roimodel.getColumns()
         for roi in data['rois']:
-            self.roimodel.addRow(roi[header[1]], roi[header[2]], roi[header[3]], roi[header[4]], roi[header[0]])
+            self._total_roi_counter += 1
+            self.roimodel.addRow([roi[header[0]], roi[header[1]], roi[header[2]], roi[header[3]], roi[header[4]]])
         self.roitable.selectRow(0)
         self.roi_redraw_all()
 

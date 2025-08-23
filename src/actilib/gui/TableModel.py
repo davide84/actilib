@@ -1,13 +1,12 @@
 from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex
 
 
-class ROITableModel(QAbstractTableModel):
-    def __init__(self):
+class TableModel(QAbstractTableModel):
+    def __init__(self, columns=None, dummyrow=None):
         super().__init__()
-        self._columns = ['Name', 'Shape', 'Center X', 'Center Y', 'Size']
-        self._dummyrow = ['', '', 0, 0, 0]
+        self._columns = ['Name', 'Shape', 'Center X', 'Center Y', 'Size'] if columns is None else columns
+        self._dummyrow = ['', '', 0, 0, 0] if dummyrow is None else dummyrow
         self._data = [self._dummyrow.copy()]  # needed otherwise header won't show up
-        self._add_counter = 0
 
     def rowCount(self, index):
         # The length of the outer list.
@@ -23,6 +22,12 @@ class ROITableModel(QAbstractTableModel):
 
     def getRowData(self, row_index):
         return self._data[row_index]
+
+    def getRowTemplate(self):
+        return self._dummyrow.copy()
+
+    def getProgressiveRowCounter(self):
+        return self._add_counter
 
     def clear(self):
         self._data = [self._dummyrow.copy()]
@@ -48,15 +53,14 @@ class ROITableModel(QAbstractTableModel):
             return True
         return False
 
-    def addRow(self, shape, center_x=0, center_y=0, size=32, name=None):
-        self._add_counter += 1
-        if name is None:
-            name = 'ROI{}'.format(self._add_counter)
-        new_entry = [name, shape, center_x, center_y, size]
+    def addRow(self, row_data, position='bottom'):
         if self._data[-1] == self._dummyrow:
-            self._data[-1] = new_entry
+            self._data[-1] = row_data
         else:
-            self._data.append(new_entry)
+            if 'top' == position:
+                self._data.insert(0, row_data)
+            else:
+                self._data.append(row_data)
         self.layoutChanged.emit()
 
     def removeRow(self, row: int, parent: QModelIndex = ...) -> bool:

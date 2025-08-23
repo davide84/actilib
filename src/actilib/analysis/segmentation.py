@@ -9,13 +9,12 @@ HUMAX = 24000
 # SEGMENTATION_MATERIALS
 # the elements are ordered by HU values to visually inspect segmented images
 class SegMats(Enum):
-    AIR = -1
-    UNSEGMENTED = 0  # defined as zero so np.zeros() initializes to UNSEGMENTED
+    AIR = 0
     LUNGS = 1
     FAT = 2
     SOFT_TISSUE = 3
     BONE = 4
-    METAL = 5  # placeholder
+    METAL = 5
     CUSTOM = 999
 
 
@@ -30,13 +29,13 @@ MAT_NAMES = {
 }
 
 HU_RANGES = {
-    SegMats.AIR: [HUMIN, -800],  # let's explicitly exclude -1000 which will stay UNSEGMENTED
+    SegMats.AIR: [HUMIN, -800],
     SegMats.LUNGS: [-800, -300],
     SegMats.FAT: [-300, 0],
     SegMats.SOFT_TISSUE: [0, 150],
     SegMats.BONE: [300, 1000],
     SegMats.METAL: [1000, HUMAX],
-    SegMats.CUSTOM: [HUMIN, HUMAX]
+    SegMats.CUSTOM: [128000, 128000]  # so that it never appears with default values
 }
 
 HU_RANGES_BY_NAME = {MAT_NAMES[k]: v for k, v in HU_RANGES.items()}
@@ -46,10 +45,8 @@ def get_default_segmentation_thresholds():
     return HU_RANGES
 
 
-def segment_with_thresholds(pixel_image, hu_ranges=None):
-    if hu_ranges is None:
-        hu_ranges = HU_RANGES
-    segm = np.zeros(pixel_image.shape)
+def segment_with_thresholds(pixel_image, hu_ranges=HU_RANGES):
+    segm = -np.ones(pixel_image.shape)  # -1 does not correspond to any material
     for tissue, hu_range in hu_ranges.items():
         segm[(hu_range[0] < pixel_image) & (pixel_image < hu_range[1])] = tissue.value
     return segm

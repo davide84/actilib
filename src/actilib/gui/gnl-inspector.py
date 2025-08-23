@@ -1,4 +1,3 @@
-
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSlider, QStatusBar, QHBoxLayout, QVBoxLayout,
                              QDesktopWidget, QPushButton, QFileDialog, QHeaderView, QTableView, QStyle, QGroupBox,
                              QLabel, QSpinBox, QComboBox, QSlider, QCheckBox, QGridLayout)
@@ -6,6 +5,7 @@ from PyQt5.QtCore import Qt
 
 from actilib.gui.MplCanvas import MplCanvas
 
+from actilib.gui.TableModel import TableModel
 from actilib.analysis.segmentation import *
 from actilib.analysis.gnl import calculate_gnl
 
@@ -75,6 +75,11 @@ class GNLInspector(QMainWindow):
         self.lbl_curr_alpha_img.setMinimumSize(50, 0)
         self.lbl_curr_alpha_img.setAlignment(Qt.AlignRight)
         self.update_alpha_labels()
+
+        self.gnlmodel = TableModel(columns=['Slice', 'Tissue', 'HU range', 'GNL [HU]'],
+                                   dummyrow=['', '', '', ''])
+        self.gnltable = QTableView()
+        self.gnltable.setModel(self.gnlmodel)
 
         self.setGeometry(50, 50, 1300, 800)
         self.setWindowTitle(BASE_TITLE)
@@ -188,9 +193,21 @@ class GNLInspector(QMainWindow):
         self.sli_alpha_seg.valueChanged.connect(self.update_image)
         self.sli_alpha_gnl.valueChanged.connect(self.update_image)
         #
+        # Past calculations
+        #
+        gbx_img_params = QGroupBox('Previous GNL calculations')
+        lay_v_table = QVBoxLayout()
+        gbx_img_params.setLayout(lay_v_table)
+        lay_v_controls.addWidget(gbx_img_params)
+        # table
+        self.gnltable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.gnltable.verticalHeader().setVisible(True)
+        self.gnltable.verticalHeader().setFixedWidth(20)
+        lay_v_table.addWidget(self.gnltable)
+        #
         # FILLER
         #
-        lay_v_controls.addStretch()
+        # lay_v_controls.addStretch()
 
     def update_tissue(self, name):
         if name != MAT_NAMES[SegMats.CUSTOM]:
@@ -230,6 +247,9 @@ class GNLInspector(QMainWindow):
         self.overlay_gnlmaps[self.slider.value() - 1] = gnlmap
         self.update_image()
         self.statusBar.showMessage(u'GLN: {} \u00B1 {:.1f}'.format(gnl, std))
+        # ['Slice', 'Tissue', 'HU range', 'GNL [HU]']
+        self.gnlmodel.addRow([self.slider.value(), self.qcb_tissue.currentText(),
+                              [self.spb_hu_min.value(), self.spb_hu_max.value()], gnl], position='top')
 
     def display_new_image_index(self):
         self.lbl_pos_slice.setText('{}/{}'.format(self.slider.value(), len(self.canvas.image_paths)))
